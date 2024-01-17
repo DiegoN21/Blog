@@ -202,31 +202,31 @@ sections:
 - block: contact
   content:
     address:
-      city: Stanford
-      country: United States
-      country_code: US
-      postcode: "94305"
-      region: CA
-      street: 450 Serra Mall
-    appointment_url: https://calendly.com
+      city: Buenos Aires
+      country: Argentina
+      country_code: ARG
+#      postcode: "94305"
+      region: BA
+#      street: 450 Serra Mall
+#    appointment_url: https://calendly.com
     autolink: true
     contact_links:
-    - icon: twitter
-      icon_pack: fab
-      link: https://twitter.com/Twitter
-      name: DM Me
-    - icon: skype
-      icon_pack: fab
-      link: skype:echo123?call
-      name: Skype Me
-    - icon: video
-      icon_pack: fas
-      link: https://zoom.com
-      name: Zoom Me
-    coordinates:
-      latitude: "37.4275"
-      longitude: "-122.1697"
-    directions: Enter Building 1 and take the stairs to Office 200 on Floor 2
+#    - icon: twitter
+#      icon_pack: fab
+#      link: https://twitter.com/Twitter
+#      name: DM Me
+#    - icon: skype
+#      icon_pack: fab
+#      link: skype:echo123?call
+#      name: Skype Me
+#    - icon: video
+#      icon_pack: fas
+#      link: https://zoom.com
+#      name: Zoom Me
+#    coordinates:
+#      latitude: "37.4275"
+#      longitude: "-122.1697"
+#    directions: Enter Building 1 and take the stairs to Office 200 on Floor 2
     email: test@example.org
     form:
       formspree:
