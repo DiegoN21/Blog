@@ -2,15 +2,15 @@
 bio: My research interests include quantitative finance, and machine learning.
 education:
   courses:
-  - course: Economics
-    institution: Stanford University
-    year: 2012
-  - course: MEng in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2009
-  - course: BSc in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2008
+  - course: Degree in Economics
+    institution: UCEMA
+    year: 
+  - course: Mg in Finance
+    institution: UCEMA
+    year: 
+  - course: Quant Finance
+    institution: UCEMA
+    year: 
 first_name: Diego
 highlight_name: true
 interests:
@@ -20,9 +20,9 @@ interests:
 last_name: Negri
 name_pronunciation: Diego Negri
 organizations:
-- name: diegoo
-  url: https://www.stanford.edu/
-role: Professor of Artificial Intelligence
+- name: 
+  url: 
+role: Quant Blogger
 skills:
 - items:
   - description: ""
