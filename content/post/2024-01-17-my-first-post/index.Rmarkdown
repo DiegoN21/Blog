@@ -1,5 +1,5 @@
 ---
-title: My first post
+title: My First Post!
 author: ''
 date: '2024-01-17'
 slug: my-first-post
@@ -37,6 +37,7 @@ library(quantmod)
 library(tidyverse)
 library(ggridges)
 library(knitr)
+library(PerformanceAnalytics)
 ```
 
 ### Downloading Sectoral ETF Data
@@ -50,7 +51,7 @@ etf_symbols <- c("XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLK", "XLU", "XLRE",
 # Download data using tidyquant
 etf_data <- tq_get(etf_symbols, from = "2000-01-01", to = today()) %>% 
     select(symbol, date, adjusted)
-etf_data %>% slice(1:5)
+kable(etf_data %>% slice(1:5))
 ```
 
 Alternatively, you can use the 'getSymbols' function from the quantmod package and then merge all the tickers into one xts object, resulting in a wide-format table. For the sake of simplicity, let's stick with the tidy approach (etf_data).
@@ -65,7 +66,7 @@ merged_adjusted_prices <- do.call(merge, lapply(etf_symbols, function(sym) {
 
 ### Computing Returns
 
-Now, let's compute the daily, monthly, and yearly logarithmic returns. We'll use tidyquant and tidyverse packages for this task.
+Now, let's compute the daily, monthly, and yearly logarithmic returns. We'll use the tidyquant package for this task.
 
 ```{r}
 daily_returns <- etf_data %>%
@@ -117,7 +118,7 @@ yearly_returns %>%
     theme_minimal() +
     scale_y_continuous(labels = scales::percent) +
     labs(title = "", x = "", y = "Yearly Return") +
-    theme(legend.position = "none")  # Remove the legend if not needed
+    theme(legend.position = "none")  
 ```
 
 ```{r, message=FALSE}
@@ -125,25 +126,14 @@ yearly_returns %>%
   ggplot(aes(x = yearly_return, y = symbol, fill = symbol)) +
   geom_density_ridges() +
   scale_fill_viridis_d() +
-  scale_x_continuous(labels = scales::percent_format(), breaks = seq(-1, 1, by = 0.2)) +  
+  scale_x_continuous(labels = scales::percent_format(), breaks = seq(-1, 1, by = 0.2)) +
   labs(title = "Density of Yearly Returns for Each ETF") +
   theme_ridges() +  
-  theme(legend.position = "none")  
+  theme(legend.position = "none",axis.title.y = element_blank(),axis.title.x = element_blank())
+  
 ```
 
-*Lets show some summary stats!*
-
-```{r, warning = FALSE}
-finance_summary_stats <- yearly_returns %>%
-  group_by(symbol) %>%
-  summarise(
-    Mean = mean(yearly_return, na.rm = TRUE),
-    Median = median(yearly_return, na.rm = TRUE),
-    SD = sd(yearly_return, na.rm = TRUE),
-    Min = min(yearly_return, na.rm = TRUE),
-    Max = max(yearly_return, na.rm = TRUE),
-  )
-```
+*Let's dive deeper into our analysis by displaying a comprehensive table that will showcase summary statistics for each sector ETF.*
 
 ```{r, warning=FALSE}
 finance_summary_stats <- yearly_returns %>%
