@@ -206,7 +206,7 @@ sections:
       country: Argentina
       country_code: ARG
 #      postcode: "94305"
-      region: BA
+      region: ARG
 #      street: 450 Serra Mall
 #    appointment_url: https://calendly.com
     autolink: true
