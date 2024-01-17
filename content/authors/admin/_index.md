@@ -20,7 +20,7 @@ interests:
 last_name: Negri
 name_pronunciation: Diego Negri
 organizations:
-- name: -
+- name: diegoo
   url: https://www.stanford.edu/
 role: Professor of Artificial Intelligence
 skills:
