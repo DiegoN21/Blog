@@ -194,11 +194,11 @@ sections:
 #    columns: "2"
 #    view: compact
 #  id: talks
-- block: tag_cloud
-  content:
-    title: Popular Topics
-  design:
-    columns: "2"
+#- block: tag_cloud
+#  content:
+#    title: Popular Topics
+#  design:
+#    columns: "2"
 - block: contact
   content:
     address:
@@ -227,20 +227,19 @@ sections:
 #      latitude: "37.4275"
 #      longitude: "-122.1697"
 #    directions: Enter Building 1 and take the stairs to Office 200 on Floor 2
-    email: test@example.org
+    email: diego.negri21@gmail.com
     form:
       formspree:
         id: null
       netlify:
         captcha: false
       provider: netlify
-    office_hours:
-    - Monday 10:00 to 13:00
-    - Wednesday 09:00 to 10:00
-    phone: 888 888 88 88
+#    office_hours:
+#    - Monday 10:00 to 13:00
+#    - Wednesday 09:00 to 10:00
+#    phone: 888 888 88 88
     subtitle: null
-    text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam mi diam, venenatis
-      ut magna et, vehicula efficitur enim.
+    text: I welcome your queries and thoughts, so please don't hesitate to contact me.
     title: Contact
   design:
     columns: "2"
