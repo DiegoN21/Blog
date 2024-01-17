@@ -4,7 +4,7 @@ theme: "theme-academic-cv"
 # Hugo Documentation: https://gohugo.io/getting-started/configuration/#all-configuration-settings
 # This file is formatted using YAML syntax - learn more at https://learnxinyminutes.com/docs/yaml/
 
-title: Academic # Website name
+title: Data Anabolics # Website name
 baseURL: 'https://dataanabolics.netlify.app' # Website URL
 
 ############################

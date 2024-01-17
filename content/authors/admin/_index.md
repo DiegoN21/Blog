@@ -48,8 +48,8 @@ social:
 status:
   icon: ☕️
 superuser: true
-title: 吳健雄
+title:
 ---
 
-Diego es
+
 {style="text-align: justify;"}
