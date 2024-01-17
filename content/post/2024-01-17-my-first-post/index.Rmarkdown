@@ -16,20 +16,21 @@ image:
   preview_only: no
 projects: []
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-## Analyzing Sectoral ETFs with R: 
+## Analyzing Sectoral ETFs with R:
 
 ## Introduction
 
 Welcome to my first blog post! As a quant data scientist, I often find myself working with financial data, and one of my favorite tools for this is R. In this post, I'm going to walk you through downloading ETF prices, specifically sectoral ETFs, from Yahoo Finance, and then we'll compute daily, monthly, and yearly returns. We'll be using two powerful packages: `tidyquant` and `quantmod`. Let's get started!
-    
+
 ### Setting Up Your Environment
-    
+
 First, ensure that you have the necessary packages installed, the load these packages into your R session:
-    
+
 ```{r}
 library(tidyquant)
 library(quantmod)
@@ -37,7 +38,9 @@ library(tidyverse)
 library(ggridges)
 library(knitr)
 ```
+
 ### Downloading Sectoral ETF Data
+
 Let's start by downloading some sectoral ETF data. For this demonstration, we'll use a few ETFs as examples and select only the adjusted prices. You can replace these with ETFs of your choice. By using the 'tq_get' function, the resulting object will be a tidy long table with all symbols listed in one column.
 
 ```{r}
@@ -51,6 +54,7 @@ etf_data %>% slice(1:5)
 ```
 
 Alternatively, you can use the 'getSymbols' function from the quantmod package and then merge all the tickers into one xts object, resulting in a wide-format table. For the sake of simplicity, let's stick with the tidy approach (etf_data).
+
 ```{r, eval = FALSE}
 getSymbols(etf_symbols, src = "yahoo", from = "2020-01-01", to = "2023-01-01")
 # Merge all ETFs into one xts object
@@ -60,6 +64,7 @@ merged_adjusted_prices <- do.call(merge, lapply(etf_symbols, function(sym) {
 ```
 
 ### Computing Returns
+
 Now, let's compute the daily, monthly, and yearly logarithmic returns. We'll use tidyquant and tidyverse packages for this task.
 
 ```{r}
@@ -90,6 +95,7 @@ yearly_returns <- etf_data %>%
 ```
 
 ### Visualization and Analysis
+
 With the computed returns, you can now create various visualizations and perform further analysis. Lets get some fun using ggplot and ggridges libraries.
 
 ```{r, message=FALSE}
@@ -103,6 +109,7 @@ yearly_returns %>%
       labs(title = "", y = "Yearly Returns", x = "") +
       theme(legend.position = "none", axis.text.x = element_text(angle = 65, hjust = 1)) 
 ```
+
 ```{r}
 yearly_returns %>%
     ggplot(aes(x = symbol, y = yearly_return, fill = symbol)) +
@@ -124,7 +131,8 @@ yearly_returns %>%
   theme(legend.position = "none")  
 ```
 
-Lets show some summary stats!
+*Lets show some summary stats!*
+
 ```{r, warning = FALSE}
 finance_summary_stats <- yearly_returns %>%
   group_by(symbol) %>%
@@ -137,19 +145,11 @@ finance_summary_stats <- yearly_returns %>%
   )
 ```
 
-
 ```{r, warning=FALSE}
-calculate_cagr <- function(returns) {
-  n_years <- length(unique(year(returns$date)))
-  start_value <- 1
-  end_value <- prod(1 + returns$yearly_return)
-  (end_value / start_value)^(1 / n_years) - 1
-}
-
 finance_summary_stats <- yearly_returns %>%
   group_by(symbol) %>%
   summarise(
-    Mean = calculate_cagr(cur_data()),  # Pass the current grouped data
+    Mean = mean(yearly_return, na.rm = TRUE),
     SD = sd(yearly_return, na.rm = TRUE),
     Min = min(yearly_return, na.rm = TRUE),
     Max = max(yearly_return, na.rm = TRUE),
@@ -162,4 +162,3 @@ finance_summary_stats <- yearly_returns %>%
 # Display the table
 kable(finance_summary_stats)
 ```
-
