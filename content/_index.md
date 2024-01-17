@@ -38,16 +38,16 @@ sections:
       text_color_light: true
 - block: about.biography
   content:
-    title: Biography
+    title: About Me
     username: admin
   id: about
-- block: skills
-  content:
-    text: ""
-    title: Skills
-    username: admin
-  design:
-    columns: "1"
+#- block: skills
+#  content:
+#    text: ""
+#    title: Skills
+#    username: admin
+#  design:
+#    columns: "1"
 - block: experience
   content:
     date_format: Jan 2006
