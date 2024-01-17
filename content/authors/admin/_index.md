@@ -1,9 +1,8 @@
 ---
-bio: My research interests include distributed robotics, mobile computing and programmable
-  matter.
+bio: My research interests include quantitative finance, and machine learning.
 education:
   courses:
-  - course: PhD in Artificial Intelligence
+  - course: Economics
     institution: Stanford University
     year: 2012
   - course: MEng in Artificial Intelligence
@@ -12,16 +11,16 @@ education:
   - course: BSc in Artificial Intelligence
     institution: Massachusetts Institute of Technology
     year: 2008
-first_name: Shiung Wu
+first_name: Diego
 highlight_name: true
 interests:
 - Artificial Intelligence
-- Computational Linguistics
-- Information Retrieval
-last_name: Chien
-name_pronunciation: Chien Shiung Wu
+- Computational Finance
+- Data Science
+last_name: Negri
+name_pronunciation: Diego Negri
 organizations:
-- name: Stanford University
+- name: -
   url: https://www.stanford.edu/
 role: Professor of Artificial Intelligence
 skills:
@@ -89,5 +88,5 @@ superuser: true
 title: 吳健雄
 ---
 
-Chien Shiung Wu is a professor of artificial intelligence at the Stanford AI Lab. Her research interests include distributed robotics, mobile computing and programmable matter. She leads the Robotic Neurobiology group, which develops self-reconfiguring robots, systems of self-organizing robots, and mobile sensor networks.
+Diego es
 {style="text-align: justify;"}
