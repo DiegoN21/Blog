@@ -1,3 +1,4 @@
+active:false
 ---
 banner:
   caption: ""
