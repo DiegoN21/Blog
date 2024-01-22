@@ -1,0 +1,340 @@
+---
+title: Bank Telemarketing
+author: ''
+date: '2024-01-22'
+slug: bank-telemarketing
+categories: []
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2024-01-22T10:41:11-03:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+## Introduction
+In this post, we will focus on predicting the success of telemarketing calls aimed at selling long-term bank deposits, particularly in the context of a Portuguese banking institution. The primary classification goal is to ascertain whether a potential client will subscribe to a term deposit, denoted as the dependent variable 'y'. This analysis draws inspiration from the seminal work of Moro, S., Cortez, P., & Rita, P. (2014) titled "A Data-Driven Approach to Predict the Success of Bank Telemarketing." Understanding the factors that influence the success of telemarketing calls can empower companys to refine their communication strategies and resource allocation, potentially leading to heightened operational efficiency and enhanced customer satisfaction. Furthermore, this study is situated within the broader spectrum of data analysis and data science research, showcasing how quantitative approaches can significantly contribute to evidence-based decision-making in the financial domain.
+
+### Overview of the Dataset
+**Data Overview** 
+
+The dataset under examination encompasses data collected from 2008 to 2013, sourced from the UCI Machine Learning Repository. For the purposes of this analysis, we will engage with a reduced subset of the original database, which contains slightly over 4,000 records and 17 input variables, as opposed to the full dataset over 40,000 records.
+
+**Data Structure**
+
+The Output Variable (Target) in our study is binary, indicating whether the client subscribed to a term deposit (yes/no).
+The input variables in our dataset can be categorized into several groups:
+1. Client Data: This includes demographic and socio-economic information such as age, job, marital status, education, etc.
+2. Current Campaign Data: Pertinent details of the ongoing marketing campaign, including the type of contact communication, the month and day of the week of the last contact, and the duration of the last contact, among others.
+3. Other Attributes: This encompasses data such as the number of contacts made during the current campaign, the number of days that have passed since the client was last contacted in a previous campaign, and the outcome of the previous marketing campaign.
+
+**Further Considerations**
+
+As the authors of the referenced paper implemented a semi-automatic feature selection process, reducing the input variables from an initial pool of 150 to 17, the feature engineering approach that we will adopt shall be minimal, yet sufficient to ensure the effective functioning of our predictive models.
+
+### Setting Up and Loading the Data
+```{r}
+# Load libraries
+library(tidymodels)
+library(tidyverse)
+library(knitr)
+library(baguette)
+library(stacks)
+library(doParallel)
+library(corrplot)
+library(DT)
+library(kableExtra)
+tidymodels_prefer()
+
+# Load the data
+data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00222/bank.zip"
+download.file(data_url, destfile = "bank.zip")
+unzip("bank.zip", files = "bank.csv", exdir = "data")
+bank_data <- read_csv2("data/bank.csv")
+bank_data <- as_tibble(bank_data)
+bank_data <- bank_data %>% mutate(across(where(is.character),as.factor))
+```
+### EDA
+
+**Features Overview**
+```{r}
+datatable(bank_data)
+
+glimpse(bank_data)
+# Categorical Variables Proportions
+kable(table(bank_data$y), align="ccc")
+```
+```{r, eval=FALSE}
+bank_data %>% select(where(is.factor)) %>% map(~prop.table(table(.)))
+```
+
+**Univariate Analysis**
+```{r}
+# Distribution of Numerical Variables
+bank_data %>% 
+  select(where(is.numeric)) %>% 
+  pivot_longer(cols = everything(),names_to = "variable", values_to = "value") %>% 
+  ggplot(aes(x = value, fill=variable)) + 
+  geom_histogram(bins = 30) + 
+  facet_wrap(~variable, scales = "free") + 
+  theme_minimal()+
+  theme(legend.position = "none")
+
+# Distribution of Categorical Variables
+bank_data %>% 
+  select(where(is.factor)) %>% 
+  pivot_longer(cols = everything(),names_to = "variable", values_to = "value") %>% 
+  ggplot(aes(x = value, fill=variable)) + 
+  geom_bar() + 
+  facet_wrap(~variable, scales = "free") + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+```
+
+**Correlation Analysis**
+
+The absence of high inter-correlations suggests that each variable contributes unique information to the model, and there is no redundancy among the predictors.
+```{r}
+cor_mat <- bank_data %>% select(where(is.numeric)) %>% cor()
+corrplot(cor_mat, method="circle")
+```
+
+**Missing Values Inspection**
+
+Upon thorough inspection for missing values, it has been determined that the dataset does not exhibit any instances of missing observations
+```{r}
+kable(summarise_all(bank_data, ~sum(is.na(.))), align="ccc")
+```
+
+### Modelling Steps Using Tidymodels
+
+**Data Splitting**
+```{r}
+set.seed(123)
+data_split <- initial_split(bank_data, prop = 0.75, strata = y)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+set.seed(123)
+train_folds <- vfold_cv(train_data, v = 10)
+```
+
+**Recipe**
+
+Create a recipe for defining the steps required to transform your raw data into a format suitable for analysis.
+```{r}
+normalized_rec <-
+    recipe(y ~ ., data = train_data) %>%
+    step_normalize(all_numeric_predictors()) %>% 
+    step_dummy(all_nominal_predictors())
+```
+
+**Models Selection**
+```{r}
+logistic_reg_spec <- logistic_reg(penalty = tune(), mixture = tune()) %>%
+    set_engine("glmnet") %>%
+    set_mode("classification")
+nnet_spec <- mlp(hidden_units = tune(), penalty = tune(), epochs = tune()) %>%
+    set_engine("nnet", MaxNWts = 2600) %>%
+    set_mode("classification")
+svm_r_spec <-svm_rbf(cost = tune(), rbf_sigma = tune()) %>%
+    set_engine("kernlab") %>%
+    set_mode("classification")
+svm_p_spec <-svm_poly(cost = tune(), degree = tune()) %>%
+    set_engine("kernlab") %>%
+    set_mode("classification")
+svm_l_spec <- svm_linear(cost = tune(), margin = tune()) %>%
+    set_engine("kernlab") %>%
+    set_mode("classification")
+cart_spec <-decision_tree(cost_complexity = tune(), min_n = tune()) %>%
+    set_engine("rpart") %>%
+    set_mode("classification")
+bag_cart_spec <-bag_tree() %>%
+    set_engine("rpart", times = 50L) %>%
+    set_mode("classification")
+rf_spec <-rand_forest(mtry = tune(), min_n = tune(), trees = 1000) %>%
+    set_engine("ranger") %>%
+    set_mode("classification")
+xgb_spec <-boost_tree(tree_depth = tune(), learn_rate = tune(),
+                      loss_reduction = tune(), min_n = tune(),
+                      sample_size = tune(), trees =tune()) %>%
+    set_engine("xgboost") %>%
+    set_mode("classification")
+```
+
+**Workflow Creation**
+```{r}
+all_workflows <-workflow_set(
+    preproc = list(normalized = normalized_rec ),
+    models = list(SVM_radial = svm_r_spec, 
+                  SVM_poly = svm_p_spec,
+                  SVM_linear = svm_l_spec,
+                  neural_network = nnet_spec,
+                  logistic_reg_spec,
+                  CART = cart_spec,
+                  CART_bagged = bag_cart_spec,
+                  RF = rf_spec,
+                  boosting = xgb_spec))
+
+all_workflows <- all_workflows %>% 
+    mutate(wflow_id = gsub("(normalized_)", "",
+                           wflow_id))
+```
+**Parallel Processing**
+
+Parallel processing is a prudent step before fitting models, especially when working with computationally intensive tasks like training multiple models or performing hyperparameter tuning
+```{r}
+cl <- makePSOCKcluster(parallel::detectCores(logical = TRUE))
+registerDoParallel(cl)
+```
+
+**Hyperparamter Tuninning**
+```{r, include=FALSE}
+grid_results <- read_rds("grid_results.rds")
+```
+
+```{r, eval=FALSE}
+grid_ctrl <-
+    control_grid(
+        save_pred = TRUE,
+        parallel_over = "everything",
+        save_workflow = TRUE,
+        event_level = "second")
+
+grid_results <-
+    all_workflows %>%
+    workflow_map(
+        seed = 1503,
+        resamples = train_folds,
+        grid = 10,
+        control = grid_ctrl,
+        verbose = TRUE)
+```
+
+**Listing best model** 
+
+One of the most informative metrics for classification tasks, especially in imbalanced datasets, is the Receiver Operating Characteristic (ROC) Area Under Curve (AUC). This metric provides a comprehensive measure of model performance across various threshold settings, balancing the trade-off between sensitivity (true positive rate) and specificity (false positive rate). Upon listing and comparing models based on the ROC AUC metric, the analysis indicates that a Random Forest model outperforms others with an AUC of 91.53% on the cross-validation data.
+```{r}
+datatable(grid_results %>%
+    rank_results(rank_metric = "roc_auc") %>%
+    filter(.metric == "roc_auc") %>%
+    select(model, .config, roc_auc = mean, rank))
+
+autoplot(
+    grid_results,
+    rank_metric = "roc_auc", 
+    metric = "roc_auc", 
+    select_best = TRUE 
+) +
+    geom_text(aes(y = mean - 0.01, label = wflow_id), angle = 90,
+              hjust = 1) +
+    lims(y = c(0.8, 0.95)) +
+    theme(legend.position = "none")
+```
+
+**Finalizing best model** 
+
+We proceed by fitting the Random Forest model to the entire training dataset. 
+```{r}
+best_results <-
+    grid_results %>%
+    extract_workflow_set_result("RF") %>% 
+    select_best(metric = "roc_auc")
+
+rf_test_results <-
+    grid_results %>%
+    extract_workflow("RF") %>%
+    finalize_workflow(best_results) %>%
+    last_fit(split = data_split)
+```
+The model has an Area Under the Curve (AUC) of 89.7% on the test data. We observe that with 9.72% of the highest-ranked calls (as per the model's prediction), we are able to detect 50% of the 'yes' cases – the clients who actually subscribed to a term deposit. While targeting 50% of the calls based on the model's ranking allows us to identify 97.7% of the potential subscribers. The model achieves an accuracy of 89.83%.os el 50% de los casos yes, y el 50% de llamados detecta 97.7%. Accuracy 89.83%
+
+```{r}
+kable(collect_metrics(rf_test_results),align="ccc")
+
+rf_test_results %>% collect_predictions() %>% 
+    roc_curve(truth = y, .pred_yes, event_level = "second") %>%
+    autoplot()
+
+rf_test_results %>% collect_predictions() %>% 
+    gain_curve(truth = y, .pred_yes, event_level = "second") %>%
+    autoplot()
+```
+
+**Considering Model Stacking over individual model selection**
+
+We consider an ensemble of various models from our grid, with a Lasso regression model serving as the meta-learner. This approach aims to harness the collective strengths of different models, thereby potentially achieving superior predictive performance compared to any single model. Upon implementation, the stacked model exhibits an AUC of 91.38%, a notable improvement over the best individual model's AUC. Furthermore, the stacked model demonstrates a compelling efficiency in prioritizing calls. It detects 50% of the 'yes' cases by targeting only 9.37% of the highest-ranked calls. While extending the campaign to 50% of the ranked calls, it successfully identifies 98.47% of the potential subscribers. 
+
+```{r, include=FALSE}
+model_stack <- read_rds("model_stack.rds")
+ens <- read_rds("ens.rds")
+ens_fit <- read_rds("ens_fit.rds")
+```
+```{r, eval=FALSE}
+# Create Stack Model Object
+model_stack <-
+    stacks() %>%
+    add_candidates(grid_results)
+
+# Train meta-learning model
+set.seed(2001)
+ens <- blend_predictions(model_stack, 
+                         non_negative = TRUE, metric = metric_set(roc_auc),
+                          penalty = 10^seq(-6, -0.5, length = 10))
+```
+```{r}
+# Plot optimal number of models
+autoplot(ens)
+
+# Plot weights of the stack model
+autoplot(ens, "weights") +
+    geom_text(aes(x = weight + 0.01, label = model), hjust = 0) +
+    theme(legend.position = "none") +
+    lims(x = c(-0.01, 10))
+```
+```{r, eval=FALSE}
+# Fit Member Models
+ens_fit <- fit_members(ens)
+```
+```{r}
+#Test Stacking and obtain metrics
+clas_metrics<- metric_set(roc_auc)
+
+ens_test_pred <-
+    predict(ens_fit, test_data, type="prob" ) %>%
+    bind_cols(test_data %>% select(y),predict(ens_fit, test_data)) 
+
+kable(ens_test_pred %>%
+    clas_metrics(truth = y, .pred_yes,event_level = "second"), align = "ccc")
+
+ens_test_pred %>% 
+    roc_curve(truth = y, .pred_yes, event_level = "second") %>%
+    autoplot()
+
+ens_test_pred %>% conf_mat(truth = y, .pred_class)
+
+gaincurve <- gain_curve(data = ens_test_pred, truth = y, .pred_yes, event_level = "second") 
+
+autoplot(gaincurve)
+```
+
+End parallel processing 
+```{r}
+stopCluster(cl)
+```
+
+### Conclusion
+
+The gain curve insightfully reveals that with this approach, we can identify approximately half of the potential clients by reaching out to only a select percentage (9.37%) of the total call list. While extending the campaign to 50% of the ranked calls, it successfully identifies 98.47% of the potential subscribers. This level of efficiency in client targeting is a crucial factor in optimizing the cost policy of any marketing campaign. This approach enables a more judicious allocation of resources, ensuring that efforts and investments are concentrated on the most promising leads, thereby enhancing the overall cost-effectiveness and success rate of the campaigns.
+
+Furthermore, there is ample scope for further refinement and improvement of the model. A deeper analysis, including more extensive exploratory data analysis and feature engineering, as well as a more thorough hyperparameter tuning, holds the potential to elevate the model's performance even further. Additionally, conducting a sensitivity analysis to understand the impact and importance of each variable could provide invaluable insights. This analysis would not only enhance the model's predictive accuracy but also offer strategic insights into the factors most influential in determining customer responses to telemarketing efforts. 
+
+
