@@ -21,7 +21,7 @@ projects: []
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 ## Introduction
-In this post, we will focus on predicting the success of telemarketing calls aimed at selling long-term bank deposits, particularly in the context of a Portuguese banking institution. The primary classification goal is to ascertain whether a potential client will subscribe to a term deposit, denoted as the dependent variable 'y'. This analysis draws inspiration from the seminal work of Moro, S., Cortez, P., & Rita, P. (2014) titled "A Data-Driven Approach to Predict the Success of Bank Telemarketing." Understanding the factors that influence the success of telemarketing calls can empower companys to refine their communication strategies and resource allocation, potentially leading to heightened operational efficiency and enhanced customer satisfaction. Furthermore, this study is situated within the broader spectrum of data analysis and data science research, showcasing how quantitative approaches can significantly contribute to evidence-based decision-making in the financial domain.
+In this post, we will focus on predicting the success of telemarketing calls aimed at selling long-term bank deposits, particularly in the context of a Portuguese banking institution. The primary classification goal is to ascertain whether a potential client will subscribe to a term deposit, denoted as the dependent variable 'y'. This analysis draws inspiration from the seminal work of Moro, S., Cortez, P., & Rita, P. (2014) titled "A Data-Driven Approach to Predict the Success of Bank Telemarketing." Understanding the factors that influence the success of telemarketing calls can empower companys to refine their communication strategies and resource allocation, potentially leading to heightened operational efficiency and enhanced customer satisfaction. *As we will see later on, we can benefit from the predictive analysis of our models by reducing the number of calls by significant amounts and successfully capturing almost the majority of the clients who will subscribe to a long-term deposit.*
 
 ### Overview of the Dataset
 **Data Overview** 
@@ -50,8 +50,7 @@ library(baguette)
 library(stacks)
 library(doParallel)
 library(corrplot)
-library(DT)
-library(kableExtra)
+library(gt)
 tidymodels_prefer()
 
 # Load the data
@@ -66,13 +65,14 @@ bank_data <- bank_data %>% mutate(across(where(is.character),as.factor))
 
 **Features Overview**
 ```{r}
-datatable(bank_data)
+gt(bank_data %>% slice(1:10))
 
-glimpse(bank_data)
 # Categorical Variables Proportions
-kable(table(bank_data$y), align="ccc")
+kable(table(bank_data$y), align="ccc", col.names = c("Deposit","Frequency"))
 ```
 ```{r, eval=FALSE}
+glimpse(bank_data)
+
 bank_data %>% select(where(is.factor)) %>% map(~prop.table(table(.)))
 ```
 
@@ -111,7 +111,7 @@ corrplot(cor_mat, method="circle")
 
 Upon thorough inspection for missing values, it has been determined that the dataset does not exhibit any instances of missing observations
 ```{r}
-kable(summarise_all(bank_data, ~sum(is.na(.))), align="ccc")
+gt(summarise_all(bank_data, ~sum(is.na(.))))
 ```
 
 ### Modelling Steps Using Tidymodels
@@ -223,10 +223,10 @@ grid_results <-
 
 One of the most informative metrics for classification tasks, especially in imbalanced datasets, is the Receiver Operating Characteristic (ROC) Area Under Curve (AUC). This metric provides a comprehensive measure of model performance across various threshold settings, balancing the trade-off between sensitivity (true positive rate) and specificity (false positive rate). Upon listing and comparing models based on the ROC AUC metric, the analysis indicates that a Random Forest model outperforms others with an AUC of 91.53% on the cross-validation data.
 ```{r}
-datatable(grid_results %>%
+gt(grid_results %>%
     rank_results(rank_metric = "roc_auc") %>%
     filter(.metric == "roc_auc") %>%
-    select(model, .config, roc_auc = mean, rank))
+    select(model, .config, roc_auc = mean, rank) %>% slice(1:20))
 
 autoplot(
     grid_results,
@@ -234,10 +234,15 @@ autoplot(
     metric = "roc_auc", 
     select_best = TRUE 
 ) +
-    geom_text(aes(y = mean - 0.01, label = wflow_id), angle = 90,
+    geom_text(aes(y = mean - 0.015, label = wflow_id), angle = 90,
               hjust = 1) +
     lims(y = c(0.8, 0.95)) +
-    theme(legend.position = "none")
+    scale_x_continuous(breaks = 1:10) +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(y = "ROC AUC")
+    
+    
 ```
 
 **Finalizing best model** 
@@ -297,8 +302,11 @@ autoplot(ens)
 # Plot weights of the stack model
 autoplot(ens, "weights") +
     geom_text(aes(x = weight + 0.01, label = model), hjust = 0) +
+    theme_minimal() + 
     theme(legend.position = "none") +
-    lims(x = c(-0.01, 10))
+    lims(x = c(-0.01, 10)) +
+    labs(title = "")
+    
 ```
 ```{r, eval=FALSE}
 # Fit Member Models
@@ -319,7 +327,20 @@ ens_test_pred %>%
     roc_curve(truth = y, .pred_yes, event_level = "second") %>%
     autoplot()
 
-ens_test_pred %>% conf_mat(truth = y, .pred_class)
+ens_test_pred %>% 
+    conf_mat(truth = y, .pred_class) %>% 
+    autoplot(type="heatmap") +
+    scale_fill_gradient(low="white", high="#009194")  + 
+    theme(axis.ticks = element_line(colour = "gray0"),
+    panel.grid.major = element_line(colour = NA),
+    panel.grid.minor = element_line(colour = NA),
+    axis.title = element_text(size = 12,
+        colour = "gray0"), axis.text = element_text(size = 10,
+        face = "bold", colour = "gray0"),
+    axis.text.x = element_text(size = 10,
+        colour = "gray0"), axis.text.y = element_text(size = 10,
+        colour = "gray0"), panel.background = element_rect(fill = "white"),
+    plot.background = element_rect(fill = "white"))
 
 gaincurve <- gain_curve(data = ens_test_pred, truth = y, .pred_yes, event_level = "second") 
 
