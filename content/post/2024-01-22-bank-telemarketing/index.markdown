@@ -39,6 +39,8 @@ The input variables in our dataset can be categorized into several groups:
 
 As the authors of the referenced paper implemented a semi-automatic feature selection process, reducing the input variables from an initial pool of 150 to 17, the feature engineering approach that we will adopt shall be minimal, yet sufficient to ensure the effective functioning of our predictive models.
 
+The attribute ‘duration’ highly affects the output target (e.g., if duration=0 then y=‘no’). Yet, the duration is not known before a call is performed. Also, after the end of the call ‘y’ is obviously known. Thus, this input should be removed if the intention is to have a realistic predictive model.
+
 ### Setting Up and Loading the Data
 
 ``` r
@@ -53,13 +55,14 @@ library(corrplot)
 library(gt)
 tidymodels_prefer()
 
-# Load the data
+# Load the data and remove the duration feature
 data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00222/bank.zip"
 download.file(data_url, destfile = "bank.zip")
 unzip("bank.zip", files = "bank.csv", exdir = "data")
 bank_data <- read_csv2("data/bank.csv")
-bank_data <- as_tibble(bank_data)
-bank_data <- bank_data %>% mutate(across(where(is.character),as.factor))
+bank_data <- bank_data %>% 
+    mutate(across(where(is.character),as.factor)) %>% 
+    select(-duration)
 ```
 
 ### EDA
@@ -70,20 +73,20 @@ bank_data <- bank_data %>% mutate(across(where(is.character),as.factor))
 gt(bank_data %>% slice(1:10))
 ```
 
-<div id="cafsluqvxl" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#cafsluqvxl table {
+<div id="dpujfqghmf" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#dpujfqghmf table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-&#10;#cafsluqvxl thead, #cafsluqvxl tbody, #cafsluqvxl tfoot, #cafsluqvxl tr, #cafsluqvxl td, #cafsluqvxl th {
+&#10;#dpujfqghmf thead, #dpujfqghmf tbody, #dpujfqghmf tfoot, #dpujfqghmf tr, #dpujfqghmf td, #dpujfqghmf th {
   border-style: none;
 }
-&#10;#cafsluqvxl p {
+&#10;#dpujfqghmf p {
   margin: 0;
   padding: 0;
 }
-&#10;#cafsluqvxl .gt_table {
+&#10;#dpujfqghmf .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -108,11 +111,11 @@ gt(bank_data %>% slice(1:10))
   border-left-width: 2px;
   border-left-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_caption {
+&#10;#dpujfqghmf .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
-&#10;#cafsluqvxl .gt_title {
+&#10;#dpujfqghmf .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -123,7 +126,7 @@ gt(bank_data %>% slice(1:10))
   border-bottom-color: #FFFFFF;
   border-bottom-width: 0;
 }
-&#10;#cafsluqvxl .gt_subtitle {
+&#10;#dpujfqghmf .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -134,7 +137,7 @@ gt(bank_data %>% slice(1:10))
   border-top-color: #FFFFFF;
   border-top-width: 0;
 }
-&#10;#cafsluqvxl .gt_heading {
+&#10;#dpujfqghmf .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -145,12 +148,12 @@ gt(bank_data %>% slice(1:10))
   border-right-width: 1px;
   border-right-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_bottom_border {
+&#10;#dpujfqghmf .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_col_headings {
+&#10;#dpujfqghmf .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -164,7 +167,7 @@ gt(bank_data %>% slice(1:10))
   border-right-width: 1px;
   border-right-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_col_heading {
+&#10;#dpujfqghmf .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -183,7 +186,7 @@ gt(bank_data %>% slice(1:10))
   padding-right: 5px;
   overflow-x: hidden;
 }
-&#10;#cafsluqvxl .gt_column_spanner_outer {
+&#10;#dpujfqghmf .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -194,13 +197,13 @@ gt(bank_data %>% slice(1:10))
   padding-left: 4px;
   padding-right: 4px;
 }
-&#10;#cafsluqvxl .gt_column_spanner_outer:first-child {
+&#10;#dpujfqghmf .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
-&#10;#cafsluqvxl .gt_column_spanner_outer:last-child {
+&#10;#dpujfqghmf .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
-&#10;#cafsluqvxl .gt_column_spanner {
+&#10;#dpujfqghmf .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -211,10 +214,10 @@ gt(bank_data %>% slice(1:10))
   display: inline-block;
   width: 100%;
 }
-&#10;#cafsluqvxl .gt_spanner_row {
+&#10;#dpujfqghmf .gt_spanner_row {
   border-bottom-style: hidden;
 }
-&#10;#cafsluqvxl .gt_group_heading {
+&#10;#dpujfqghmf .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -239,7 +242,7 @@ gt(bank_data %>% slice(1:10))
   vertical-align: middle;
   text-align: left;
 }
-&#10;#cafsluqvxl .gt_empty_group_heading {
+&#10;#dpujfqghmf .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -253,13 +256,13 @@ gt(bank_data %>% slice(1:10))
   border-bottom-color: #D3D3D3;
   vertical-align: middle;
 }
-&#10;#cafsluqvxl .gt_from_md > :first-child {
+&#10;#dpujfqghmf .gt_from_md > :first-child {
   margin-top: 0;
 }
-&#10;#cafsluqvxl .gt_from_md > :last-child {
+&#10;#dpujfqghmf .gt_from_md > :last-child {
   margin-bottom: 0;
 }
-&#10;#cafsluqvxl .gt_row {
+&#10;#dpujfqghmf .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -277,7 +280,7 @@ gt(bank_data %>% slice(1:10))
   vertical-align: middle;
   overflow-x: hidden;
 }
-&#10;#cafsluqvxl .gt_stub {
+&#10;#dpujfqghmf .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -289,7 +292,7 @@ gt(bank_data %>% slice(1:10))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#cafsluqvxl .gt_stub_row_group {
+&#10;#dpujfqghmf .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -302,13 +305,13 @@ gt(bank_data %>% slice(1:10))
   padding-right: 5px;
   vertical-align: top;
 }
-&#10;#cafsluqvxl .gt_row_group_first td {
+&#10;#dpujfqghmf .gt_row_group_first td {
   border-top-width: 2px;
 }
-&#10;#cafsluqvxl .gt_row_group_first th {
+&#10;#dpujfqghmf .gt_row_group_first th {
   border-top-width: 2px;
 }
-&#10;#cafsluqvxl .gt_summary_row {
+&#10;#dpujfqghmf .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -317,14 +320,14 @@ gt(bank_data %>% slice(1:10))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#cafsluqvxl .gt_first_summary_row {
+&#10;#dpujfqghmf .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_first_summary_row.thick {
+&#10;#dpujfqghmf .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
-&#10;#cafsluqvxl .gt_last_summary_row {
+&#10;#dpujfqghmf .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -333,7 +336,7 @@ gt(bank_data %>% slice(1:10))
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_grand_summary_row {
+&#10;#dpujfqghmf .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -342,7 +345,7 @@ gt(bank_data %>% slice(1:10))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#cafsluqvxl .gt_first_grand_summary_row {
+&#10;#dpujfqghmf .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -351,7 +354,7 @@ gt(bank_data %>% slice(1:10))
   border-top-width: 6px;
   border-top-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_last_grand_summary_row_top {
+&#10;#dpujfqghmf .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -360,10 +363,10 @@ gt(bank_data %>% slice(1:10))
   border-bottom-width: 6px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_striped {
+&#10;#dpujfqghmf .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
-&#10;#cafsluqvxl .gt_table_body {
+&#10;#dpujfqghmf .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -371,7 +374,7 @@ gt(bank_data %>% slice(1:10))
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_footnotes {
+&#10;#dpujfqghmf .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -384,7 +387,7 @@ gt(bank_data %>% slice(1:10))
   border-right-width: 2px;
   border-right-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_footnote {
+&#10;#dpujfqghmf .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -392,7 +395,7 @@ gt(bank_data %>% slice(1:10))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#cafsluqvxl .gt_sourcenotes {
+&#10;#dpujfqghmf .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -405,57 +408,57 @@ gt(bank_data %>% slice(1:10))
   border-right-width: 2px;
   border-right-color: #D3D3D3;
 }
-&#10;#cafsluqvxl .gt_sourcenote {
+&#10;#dpujfqghmf .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#cafsluqvxl .gt_left {
+&#10;#dpujfqghmf .gt_left {
   text-align: left;
 }
-&#10;#cafsluqvxl .gt_center {
+&#10;#dpujfqghmf .gt_center {
   text-align: center;
 }
-&#10;#cafsluqvxl .gt_right {
+&#10;#dpujfqghmf .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-&#10;#cafsluqvxl .gt_font_normal {
+&#10;#dpujfqghmf .gt_font_normal {
   font-weight: normal;
 }
-&#10;#cafsluqvxl .gt_font_bold {
+&#10;#dpujfqghmf .gt_font_bold {
   font-weight: bold;
 }
-&#10;#cafsluqvxl .gt_font_italic {
+&#10;#dpujfqghmf .gt_font_italic {
   font-style: italic;
 }
-&#10;#cafsluqvxl .gt_super {
+&#10;#dpujfqghmf .gt_super {
   font-size: 65%;
 }
-&#10;#cafsluqvxl .gt_footnote_marks {
+&#10;#dpujfqghmf .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
-&#10;#cafsluqvxl .gt_asterisk {
+&#10;#dpujfqghmf .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
-&#10;#cafsluqvxl .gt_indent_1 {
+&#10;#dpujfqghmf .gt_indent_1 {
   text-indent: 5px;
 }
-&#10;#cafsluqvxl .gt_indent_2 {
+&#10;#dpujfqghmf .gt_indent_2 {
   text-indent: 10px;
 }
-&#10;#cafsluqvxl .gt_indent_3 {
+&#10;#dpujfqghmf .gt_indent_3 {
   text-indent: 15px;
 }
-&#10;#cafsluqvxl .gt_indent_4 {
+&#10;#dpujfqghmf .gt_indent_4 {
   text-indent: 20px;
 }
-&#10;#cafsluqvxl .gt_indent_5 {
+&#10;#dpujfqghmf .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -473,7 +476,6 @@ gt(bank_data %>% slice(1:10))
       <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="contact">contact</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="day">day</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="month">month</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="duration">duration</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="campaign">campaign</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pdays">pdays</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="previous">previous</th>
@@ -493,7 +495,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">19</td>
 <td headers="month" class="gt_row gt_center">oct</td>
-<td headers="duration" class="gt_row gt_right">79</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">-1</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -510,7 +511,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">11</td>
 <td headers="month" class="gt_row gt_center">may</td>
-<td headers="duration" class="gt_row gt_right">220</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">339</td>
 <td headers="previous" class="gt_row gt_right">4</td>
@@ -527,7 +527,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">16</td>
 <td headers="month" class="gt_row gt_center">apr</td>
-<td headers="duration" class="gt_row gt_right">185</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">330</td>
 <td headers="previous" class="gt_row gt_right">1</td>
@@ -544,7 +543,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">unknown</td>
 <td headers="day" class="gt_row gt_right">3</td>
 <td headers="month" class="gt_row gt_center">jun</td>
-<td headers="duration" class="gt_row gt_right">199</td>
 <td headers="campaign" class="gt_row gt_right">4</td>
 <td headers="pdays" class="gt_row gt_right">-1</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -561,7 +559,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">unknown</td>
 <td headers="day" class="gt_row gt_right">5</td>
 <td headers="month" class="gt_row gt_center">may</td>
-<td headers="duration" class="gt_row gt_right">226</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">-1</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -578,7 +575,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">23</td>
 <td headers="month" class="gt_row gt_center">feb</td>
-<td headers="duration" class="gt_row gt_right">141</td>
 <td headers="campaign" class="gt_row gt_right">2</td>
 <td headers="pdays" class="gt_row gt_right">176</td>
 <td headers="previous" class="gt_row gt_right">3</td>
@@ -595,7 +591,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">14</td>
 <td headers="month" class="gt_row gt_center">may</td>
-<td headers="duration" class="gt_row gt_right">341</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">330</td>
 <td headers="previous" class="gt_row gt_right">2</td>
@@ -612,7 +607,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">6</td>
 <td headers="month" class="gt_row gt_center">may</td>
-<td headers="duration" class="gt_row gt_right">151</td>
 <td headers="campaign" class="gt_row gt_right">2</td>
 <td headers="pdays" class="gt_row gt_right">-1</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -629,7 +623,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">unknown</td>
 <td headers="day" class="gt_row gt_right">14</td>
 <td headers="month" class="gt_row gt_center">may</td>
-<td headers="duration" class="gt_row gt_right">57</td>
 <td headers="campaign" class="gt_row gt_right">2</td>
 <td headers="pdays" class="gt_row gt_right">-1</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -646,7 +639,6 @@ gt(bank_data %>% slice(1:10))
 <td headers="contact" class="gt_row gt_center">cellular</td>
 <td headers="day" class="gt_row gt_right">17</td>
 <td headers="month" class="gt_row gt_center">apr</td>
-<td headers="duration" class="gt_row gt_right">313</td>
 <td headers="campaign" class="gt_row gt_right">1</td>
 <td headers="pdays" class="gt_row gt_right">147</td>
 <td headers="previous" class="gt_row gt_right">2</td>
@@ -722,20 +714,20 @@ Upon thorough inspection for missing values, it has been determined that the dat
 gt(summarise_all(bank_data, ~sum(is.na(.))))
 ```
 
-<div id="yaygvmifyh" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#yaygvmifyh table {
+<div id="tbckkyhrjl" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#tbckkyhrjl table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-&#10;#yaygvmifyh thead, #yaygvmifyh tbody, #yaygvmifyh tfoot, #yaygvmifyh tr, #yaygvmifyh td, #yaygvmifyh th {
+&#10;#tbckkyhrjl thead, #tbckkyhrjl tbody, #tbckkyhrjl tfoot, #tbckkyhrjl tr, #tbckkyhrjl td, #tbckkyhrjl th {
   border-style: none;
 }
-&#10;#yaygvmifyh p {
+&#10;#tbckkyhrjl p {
   margin: 0;
   padding: 0;
 }
-&#10;#yaygvmifyh .gt_table {
+&#10;#tbckkyhrjl .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -760,11 +752,11 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-left-width: 2px;
   border-left-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_caption {
+&#10;#tbckkyhrjl .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
-&#10;#yaygvmifyh .gt_title {
+&#10;#tbckkyhrjl .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -775,7 +767,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-bottom-color: #FFFFFF;
   border-bottom-width: 0;
 }
-&#10;#yaygvmifyh .gt_subtitle {
+&#10;#tbckkyhrjl .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -786,7 +778,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-top-color: #FFFFFF;
   border-top-width: 0;
 }
-&#10;#yaygvmifyh .gt_heading {
+&#10;#tbckkyhrjl .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -797,12 +789,12 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-right-width: 1px;
   border-right-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_bottom_border {
+&#10;#tbckkyhrjl .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_col_headings {
+&#10;#tbckkyhrjl .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -816,7 +808,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-right-width: 1px;
   border-right-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_col_heading {
+&#10;#tbckkyhrjl .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -835,7 +827,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-right: 5px;
   overflow-x: hidden;
 }
-&#10;#yaygvmifyh .gt_column_spanner_outer {
+&#10;#tbckkyhrjl .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -846,13 +838,13 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-left: 4px;
   padding-right: 4px;
 }
-&#10;#yaygvmifyh .gt_column_spanner_outer:first-child {
+&#10;#tbckkyhrjl .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
-&#10;#yaygvmifyh .gt_column_spanner_outer:last-child {
+&#10;#tbckkyhrjl .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
-&#10;#yaygvmifyh .gt_column_spanner {
+&#10;#tbckkyhrjl .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -863,10 +855,10 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   display: inline-block;
   width: 100%;
 }
-&#10;#yaygvmifyh .gt_spanner_row {
+&#10;#tbckkyhrjl .gt_spanner_row {
   border-bottom-style: hidden;
 }
-&#10;#yaygvmifyh .gt_group_heading {
+&#10;#tbckkyhrjl .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -891,7 +883,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   vertical-align: middle;
   text-align: left;
 }
-&#10;#yaygvmifyh .gt_empty_group_heading {
+&#10;#tbckkyhrjl .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -905,13 +897,13 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-bottom-color: #D3D3D3;
   vertical-align: middle;
 }
-&#10;#yaygvmifyh .gt_from_md > :first-child {
+&#10;#tbckkyhrjl .gt_from_md > :first-child {
   margin-top: 0;
 }
-&#10;#yaygvmifyh .gt_from_md > :last-child {
+&#10;#tbckkyhrjl .gt_from_md > :last-child {
   margin-bottom: 0;
 }
-&#10;#yaygvmifyh .gt_row {
+&#10;#tbckkyhrjl .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -929,7 +921,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   vertical-align: middle;
   overflow-x: hidden;
 }
-&#10;#yaygvmifyh .gt_stub {
+&#10;#tbckkyhrjl .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -941,7 +933,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#yaygvmifyh .gt_stub_row_group {
+&#10;#tbckkyhrjl .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -954,13 +946,13 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-right: 5px;
   vertical-align: top;
 }
-&#10;#yaygvmifyh .gt_row_group_first td {
+&#10;#tbckkyhrjl .gt_row_group_first td {
   border-top-width: 2px;
 }
-&#10;#yaygvmifyh .gt_row_group_first th {
+&#10;#tbckkyhrjl .gt_row_group_first th {
   border-top-width: 2px;
 }
-&#10;#yaygvmifyh .gt_summary_row {
+&#10;#tbckkyhrjl .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -969,14 +961,14 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#yaygvmifyh .gt_first_summary_row {
+&#10;#tbckkyhrjl .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_first_summary_row.thick {
+&#10;#tbckkyhrjl .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
-&#10;#yaygvmifyh .gt_last_summary_row {
+&#10;#tbckkyhrjl .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -985,7 +977,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_grand_summary_row {
+&#10;#tbckkyhrjl .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -994,7 +986,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#yaygvmifyh .gt_first_grand_summary_row {
+&#10;#tbckkyhrjl .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1003,7 +995,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-top-width: 6px;
   border-top-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_last_grand_summary_row_top {
+&#10;#tbckkyhrjl .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1012,10 +1004,10 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-bottom-width: 6px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_striped {
+&#10;#tbckkyhrjl .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
-&#10;#yaygvmifyh .gt_table_body {
+&#10;#tbckkyhrjl .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1023,7 +1015,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_footnotes {
+&#10;#tbckkyhrjl .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1036,7 +1028,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-right-width: 2px;
   border-right-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_footnote {
+&#10;#tbckkyhrjl .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1044,7 +1036,7 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#yaygvmifyh .gt_sourcenotes {
+&#10;#tbckkyhrjl .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1057,57 +1049,57 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
   border-right-width: 2px;
   border-right-color: #D3D3D3;
 }
-&#10;#yaygvmifyh .gt_sourcenote {
+&#10;#tbckkyhrjl .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
   padding-left: 5px;
   padding-right: 5px;
 }
-&#10;#yaygvmifyh .gt_left {
+&#10;#tbckkyhrjl .gt_left {
   text-align: left;
 }
-&#10;#yaygvmifyh .gt_center {
+&#10;#tbckkyhrjl .gt_center {
   text-align: center;
 }
-&#10;#yaygvmifyh .gt_right {
+&#10;#tbckkyhrjl .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-&#10;#yaygvmifyh .gt_font_normal {
+&#10;#tbckkyhrjl .gt_font_normal {
   font-weight: normal;
 }
-&#10;#yaygvmifyh .gt_font_bold {
+&#10;#tbckkyhrjl .gt_font_bold {
   font-weight: bold;
 }
-&#10;#yaygvmifyh .gt_font_italic {
+&#10;#tbckkyhrjl .gt_font_italic {
   font-style: italic;
 }
-&#10;#yaygvmifyh .gt_super {
+&#10;#tbckkyhrjl .gt_super {
   font-size: 65%;
 }
-&#10;#yaygvmifyh .gt_footnote_marks {
+&#10;#tbckkyhrjl .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
-&#10;#yaygvmifyh .gt_asterisk {
+&#10;#tbckkyhrjl .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
-&#10;#yaygvmifyh .gt_indent_1 {
+&#10;#tbckkyhrjl .gt_indent_1 {
   text-indent: 5px;
 }
-&#10;#yaygvmifyh .gt_indent_2 {
+&#10;#tbckkyhrjl .gt_indent_2 {
   text-indent: 10px;
 }
-&#10;#yaygvmifyh .gt_indent_3 {
+&#10;#tbckkyhrjl .gt_indent_3 {
   text-indent: 15px;
 }
-&#10;#yaygvmifyh .gt_indent_4 {
+&#10;#tbckkyhrjl .gt_indent_4 {
   text-indent: 20px;
 }
-&#10;#yaygvmifyh .gt_indent_5 {
+&#10;#tbckkyhrjl .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -1125,7 +1117,6 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="contact">contact</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="day">day</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="month">month</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="duration">duration</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="campaign">campaign</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pdays">pdays</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="previous">previous</th>
@@ -1145,7 +1136,6 @@ gt(summarise_all(bank_data, ~sum(is.na(.))))
 <td headers="contact" class="gt_row gt_right">0</td>
 <td headers="day" class="gt_row gt_right">0</td>
 <td headers="month" class="gt_row gt_right">0</td>
-<td headers="duration" class="gt_row gt_right">0</td>
 <td headers="campaign" class="gt_row gt_right">0</td>
 <td headers="pdays" class="gt_row gt_right">0</td>
 <td headers="previous" class="gt_row gt_right">0</td>
@@ -1208,6 +1198,9 @@ bag_cart_spec <-bag_tree() %>%
 rf_spec <-rand_forest(mtry = tune(), min_n = tune(), trees = 1000) %>%
     set_engine("ranger") %>%
     set_mode("classification")
+knn_spec <-nearest_neighbor(neighbors = tune()) %>%
+ set_engine("kknn") %>%
+ set_mode("classification")
 xgb_spec <-boost_tree(tree_depth = tune(), learn_rate = tune(),
                       loss_reduction = tune(), min_n = tune(),
                       sample_size = tune(), trees =tune()) %>%
@@ -1228,7 +1221,8 @@ all_workflows <-workflow_set(
                   CART = cart_spec,
                   CART_bagged = bag_cart_spec,
                   RF = rf_spec,
-                  boosting = xgb_spec))
+                  boosting = xgb_spec,
+                  knn = knn_spec))
 
 all_workflows <- all_workflows %>% 
     mutate(wflow_id = gsub("(normalized_)", "",
@@ -1247,6 +1241,7 @@ registerDoParallel(cl)
 **Hyperparamter Tuninning**
 
 ``` r
+tic()
 grid_ctrl <-
     control_grid(
         save_pred = TRUE,
@@ -1259,14 +1254,15 @@ grid_results <-
     workflow_map(
         seed = 1503,
         resamples = train_folds,
-        grid = 10,
+        grid = 20,
         control = grid_ctrl,
         verbose = TRUE)
+toc()
 ```
 
 **Listing best model**
 
-One of the most informative metrics for classification tasks, especially in imbalanced datasets, is the Receiver Operating Characteristic (ROC) Area Under Curve (AUC). This metric provides a comprehensive measure of model performance across various threshold settings, balancing the trade-off between sensitivity (true positive rate) and specificity (false positive rate). Upon listing and comparing models based on the ROC AUC metric, the analysis indicates that a Random Forest model outperforms others with an AUC of 91.53% on the cross-validation data.
+One of the most informative metrics for classification tasks, especially in imbalanced datasets, is the Receiver Operating Characteristic (ROC) Area Under Curve (AUC). This metric provides a comprehensive measure of model performance across various threshold settings, balancing the trade-off between sensitivity (true positive rate) and specificity (false positive rate). Upon listing and comparing models based on the ROC AUC metric, the analysis indicates that a XGBOOST model outperforms others with an AUC of 74.85% on the cross-validation data.
 
 ``` r
 gt(grid_results %>%
@@ -1674,85 +1670,85 @@ gt(grid_results %>%
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+    <tr><td headers="model" class="gt_row gt_left">boost_tree</td>
 <td headers=".config" class="gt_row gt_left">Preprocessor1_Model01</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9153616</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7484995</td>
 <td headers="rank" class="gt_row gt_right">1</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model10</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9143246</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model18</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7430474</td>
 <td headers="rank" class="gt_row gt_right">2</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
 <td headers=".config" class="gt_row gt_left">Preprocessor1_Model06</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9136965</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7429241</td>
 <td headers="rank" class="gt_row gt_right">3</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model07</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9122334</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model20</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7423235</td>
 <td headers="rank" class="gt_row gt_right">4</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model04</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9121779</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model02</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7411300</td>
 <td headers="rank" class="gt_row gt_right">5</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model09</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9115141</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model01</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7409096</td>
 <td headers="rank" class="gt_row gt_right">6</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model02</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9102697</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model04</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7408934</td>
 <td headers="rank" class="gt_row gt_right">7</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model03</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9093473</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model17</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7399115</td>
 <td headers="rank" class="gt_row gt_right">8</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model08</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9081147</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model11</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7396023</td>
 <td headers="rank" class="gt_row gt_right">9</td></tr>
     <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model05</td>
-<td headers="roc_auc" class="gt_row gt_right">0.9054568</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model09</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7389904</td>
 <td headers="rank" class="gt_row gt_right">10</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">logistic_reg</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model10</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8945111</td>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model03</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7381772</td>
 <td headers="rank" class="gt_row gt_right">11</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">boost_tree</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model02</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8926433</td>
-<td headers="rank" class="gt_row gt_right">12</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">boost_tree</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model03</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8915750</td>
-<td headers="rank" class="gt_row gt_right">13</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">bag_tree</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model1</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8907312</td>
-<td headers="rank" class="gt_row gt_right">14</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">svm_rbf</td>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
 <td headers=".config" class="gt_row gt_left">Preprocessor1_Model10</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8900477</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7378032</td>
+<td headers="rank" class="gt_row gt_right">12</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model07</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7361533</td>
+<td headers="rank" class="gt_row gt_right">13</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model05</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7359897</td>
+<td headers="rank" class="gt_row gt_right">14</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model14</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7356451</td>
 <td headers="rank" class="gt_row gt_right">15</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">mlp</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model04</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8897110</td>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model19</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7347003</td>
 <td headers="rank" class="gt_row gt_right">16</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">logistic_reg</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model03</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8887364</td>
-<td headers="rank" class="gt_row gt_right">17</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">logistic_reg</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model02</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8887025</td>
-<td headers="rank" class="gt_row gt_right">18</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">logistic_reg</td>
-<td headers=".config" class="gt_row gt_left">Preprocessor1_Model06</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8886915</td>
-<td headers="rank" class="gt_row gt_right">19</td></tr>
-    <tr><td headers="model" class="gt_row gt_left">logistic_reg</td>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
 <td headers=".config" class="gt_row gt_left">Preprocessor1_Model08</td>
-<td headers="roc_auc" class="gt_row gt_right">0.8886834</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7338226</td>
+<td headers="rank" class="gt_row gt_right">17</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">boost_tree</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model05</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7332005</td>
+<td headers="rank" class="gt_row gt_right">18</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model12</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7317803</td>
+<td headers="rank" class="gt_row gt_right">19</td></tr>
+    <tr><td headers="model" class="gt_row gt_left">rand_forest</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model13</td>
+<td headers="roc_auc" class="gt_row gt_right">0.7316423</td>
 <td headers="rank" class="gt_row gt_right">20</td></tr>
   </tbody>
   &#10;  
@@ -1768,62 +1764,469 @@ autoplot(
 ) +
     geom_text(aes(y = mean - 0.015, label = wflow_id), angle = 90,
               hjust = 1) +
-    lims(y = c(0.8, 0.95)) +
+    lims(y = c(0.5, 0.8)) +
     scale_x_continuous(breaks = 1:10) +
     theme_minimal() +
     theme(legend.position = "none") +
     labs(y = "ROC AUC")
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-14-1.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="672" />
 
 **Finalizing best model**
 
-We proceed by fitting the Random Forest model to the entire training dataset.
+We proceed by fitting the XGBOOST model to the entire training dataset.
 
 ``` r
 best_results <-
     grid_results %>%
-    extract_workflow_set_result("RF") %>% 
+    extract_workflow_set_result("boosting") %>% 
     select_best(metric = "roc_auc")
 
-rf_test_results <-
+boosting_test_results <-
     grid_results %>%
-    extract_workflow("RF") %>%
+    extract_workflow("boosting") %>%
     finalize_workflow(best_results) %>%
     last_fit(split = data_split)
 ```
 
-The model has an Area Under the Curve (AUC) of 89.7% on the test data. We observe that with 9.72% of the highest-ranked calls (as per the model’s prediction), we are able to detect 50% of the ‘yes’ cases – the clients who actually subscribed to a term deposit. While targeting 50% of the calls based on the model’s ranking allows us to identify 97.7% of the potential subscribers. The model achieves an accuracy of 89.83%.os el 50% de los casos yes, y el 50% de llamados detecta 97.7%. Accuracy 89.83%
+The model has an Area Under the Curve (AUC) of 73.81% on the test data. We observe that with 24.49% of the highest-ranked calls (as per the model’s prediction), we are able to detect 50% of the ‘yes’ cases – the clients who actually subscribed to a term deposit. While targeting 50% of the calls based on the model’s ranking allows us to identify 78.62% of the potential subscribers.
 
 ``` r
-kable(collect_metrics(rf_test_results),align="ccc")
+gt(collect_metrics(boosting_test_results))
 ```
 
-| .metric  | .estimator | .estimate |       .config        |
-|:--------:|:----------:|:---------:|:--------------------:|
-| accuracy |   binary   | 0.8965517 | Preprocessor1_Model1 |
-| roc_auc  |   binary   | 0.9012061 | Preprocessor1_Model1 |
+<div id="rwwclghwsb" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#rwwclghwsb table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+&#10;#rwwclghwsb thead, #rwwclghwsb tbody, #rwwclghwsb tfoot, #rwwclghwsb tr, #rwwclghwsb td, #rwwclghwsb th {
+  border-style: none;
+}
+&#10;#rwwclghwsb p {
+  margin: 0;
+  padding: 0;
+}
+&#10;#rwwclghwsb .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+&#10;#rwwclghwsb .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+&#10;#rwwclghwsb .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+&#10;#rwwclghwsb .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+&#10;#rwwclghwsb .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+&#10;#rwwclghwsb .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+&#10;#rwwclghwsb .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+&#10;#rwwclghwsb .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+&#10;#rwwclghwsb .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+&#10;#rwwclghwsb .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+&#10;#rwwclghwsb .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+&#10;#rwwclghwsb .gt_from_md > :first-child {
+  margin-top: 0;
+}
+&#10;#rwwclghwsb .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+&#10;#rwwclghwsb .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+&#10;#rwwclghwsb .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#rwwclghwsb .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+&#10;#rwwclghwsb .gt_row_group_first td {
+  border-top-width: 2px;
+}
+&#10;#rwwclghwsb .gt_row_group_first th {
+  border-top-width: 2px;
+}
+&#10;#rwwclghwsb .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#rwwclghwsb .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+&#10;#rwwclghwsb .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#rwwclghwsb .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+&#10;#rwwclghwsb .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#rwwclghwsb .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#rwwclghwsb .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#rwwclghwsb .gt_left {
+  text-align: left;
+}
+&#10;#rwwclghwsb .gt_center {
+  text-align: center;
+}
+&#10;#rwwclghwsb .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+&#10;#rwwclghwsb .gt_font_normal {
+  font-weight: normal;
+}
+&#10;#rwwclghwsb .gt_font_bold {
+  font-weight: bold;
+}
+&#10;#rwwclghwsb .gt_font_italic {
+  font-style: italic;
+}
+&#10;#rwwclghwsb .gt_super {
+  font-size: 65%;
+}
+&#10;#rwwclghwsb .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+&#10;#rwwclghwsb .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+&#10;#rwwclghwsb .gt_indent_1 {
+  text-indent: 5px;
+}
+&#10;#rwwclghwsb .gt_indent_2 {
+  text-indent: 10px;
+}
+&#10;#rwwclghwsb .gt_indent_3 {
+  text-indent: 15px;
+}
+&#10;#rwwclghwsb .gt_indent_4 {
+  text-indent: 20px;
+}
+&#10;#rwwclghwsb .gt_indent_5 {
+  text-indent: 25px;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    &#10;    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id=".metric">.metric</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id=".estimator">.estimator</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id=".estimate">.estimate</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id=".config">.config</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers=".metric" class="gt_row gt_left">accuracy</td>
+<td headers=".estimator" class="gt_row gt_left">binary</td>
+<td headers=".estimate" class="gt_row gt_right">0.8868258</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model1</td></tr>
+    <tr><td headers=".metric" class="gt_row gt_left">roc_auc</td>
+<td headers=".estimator" class="gt_row gt_left">binary</td>
+<td headers=".estimate" class="gt_row gt_right">0.7392214</td>
+<td headers=".config" class="gt_row gt_left">Preprocessor1_Model1</td></tr>
+  </tbody>
+  &#10;  
+</table>
+</div>
 
 ``` r
-rf_test_results %>% collect_predictions() %>% 
+boosting_test_results %>% collect_predictions() %>% 
     roc_curve(truth = y, .pred_yes, event_level = "second") %>%
     autoplot()
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-17-1.png" width="672" />
 
 ``` r
-rf_test_results %>% collect_predictions() %>% 
+boosting_test_results %>% collect_predictions() %>% 
     gain_curve(truth = y, .pred_yes, event_level = "second") %>%
     autoplot()
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-2.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-17-2.png" width="672" />
 
 **Considering Model Stacking over individual model selection**
 
-We consider an ensemble of various models from our grid, with a Lasso regression model serving as the meta-learner. This approach aims to harness the collective strengths of different models, thereby potentially achieving superior predictive performance compared to any single model. Upon implementation, the stacked model exhibits an AUC of 91.38%, a notable improvement over the best individual model’s AUC. Furthermore, the stacked model demonstrates a compelling efficiency in prioritizing calls. It detects 50% of the ‘yes’ cases by targeting only 9.37% of the highest-ranked calls. While extending the campaign to 50% of the ranked calls, it successfully identifies 98.47% of the potential subscribers.
+We consider an ensemble of various models from our grid, with a Lasso regression model serving as the meta-learner. This approach aims to harness the collective strengths of different models, thereby potentially achieving superior predictive performance compared to any single model. Upon implementation, the stacked model exhibits an AUC of 75.60%, an improvement over the best individual model’s AUC. Furthermore, the stacked model demonstrates a compelling efficiency in prioritizing calls. It detects 50% of the ‘yes’ cases by targeting only 19.10% of the highest-ranked calls. While extending the campaign to 50% of the ranked calls, it successfully identifies 79.39% of the potential subscribers.
 
 ``` r
 # Create Stack Model Object
@@ -1835,7 +2238,7 @@ model_stack <-
 set.seed(2001)
 ens <- blend_predictions(model_stack, 
                          non_negative = TRUE, metric = metric_set(roc_auc),
-                          penalty = 10^seq(-6, -0.5, length = 10))
+                          penalty = 10^seq(-3, -0.5, length = 10))
 ```
 
 ``` r
@@ -1843,7 +2246,7 @@ ens <- blend_predictions(model_stack,
 autoplot(ens)
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-19-1.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-1.png" width="672" />
 
 ``` r
 # Plot weights of the stack model
@@ -1855,7 +2258,7 @@ autoplot(ens, "weights") +
     labs(title = "")
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-19-2.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-2.png" width="672" />
 
 ``` r
 # Fit Member Models
@@ -1870,13 +2273,415 @@ ens_test_pred <-
     predict(ens_fit, test_data, type="prob" ) %>%
     bind_cols(test_data %>% select(y),predict(ens_fit, test_data)) 
 
-kable(ens_test_pred %>%
-    clas_metrics(truth = y, .pred_yes,event_level = "second"), align = "ccc")
+gt(ens_test_pred %>%
+    clas_metrics(truth = y, .pred_yes,event_level = "second"))
 ```
 
-| .metric | .estimator | .estimate |
-|:-------:|:----------:|:---------:|
-| roc_auc |   binary   | 0.9147176 |
+<div id="ejgnwxutga" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ejgnwxutga table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+&#10;#ejgnwxutga thead, #ejgnwxutga tbody, #ejgnwxutga tfoot, #ejgnwxutga tr, #ejgnwxutga td, #ejgnwxutga th {
+  border-style: none;
+}
+&#10;#ejgnwxutga p {
+  margin: 0;
+  padding: 0;
+}
+&#10;#ejgnwxutga .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+&#10;#ejgnwxutga .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+&#10;#ejgnwxutga .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+&#10;#ejgnwxutga .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+&#10;#ejgnwxutga .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+&#10;#ejgnwxutga .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+&#10;#ejgnwxutga .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+&#10;#ejgnwxutga .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+&#10;#ejgnwxutga .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+&#10;#ejgnwxutga .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+&#10;#ejgnwxutga .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+&#10;#ejgnwxutga .gt_from_md > :first-child {
+  margin-top: 0;
+}
+&#10;#ejgnwxutga .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+&#10;#ejgnwxutga .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+&#10;#ejgnwxutga .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#ejgnwxutga .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+&#10;#ejgnwxutga .gt_row_group_first td {
+  border-top-width: 2px;
+}
+&#10;#ejgnwxutga .gt_row_group_first th {
+  border-top-width: 2px;
+}
+&#10;#ejgnwxutga .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#ejgnwxutga .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+&#10;#ejgnwxutga .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#ejgnwxutga .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+&#10;#ejgnwxutga .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#ejgnwxutga .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#ejgnwxutga .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#ejgnwxutga .gt_left {
+  text-align: left;
+}
+&#10;#ejgnwxutga .gt_center {
+  text-align: center;
+}
+&#10;#ejgnwxutga .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+&#10;#ejgnwxutga .gt_font_normal {
+  font-weight: normal;
+}
+&#10;#ejgnwxutga .gt_font_bold {
+  font-weight: bold;
+}
+&#10;#ejgnwxutga .gt_font_italic {
+  font-style: italic;
+}
+&#10;#ejgnwxutga .gt_super {
+  font-size: 65%;
+}
+&#10;#ejgnwxutga .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+&#10;#ejgnwxutga .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+&#10;#ejgnwxutga .gt_indent_1 {
+  text-indent: 5px;
+}
+&#10;#ejgnwxutga .gt_indent_2 {
+  text-indent: 10px;
+}
+&#10;#ejgnwxutga .gt_indent_3 {
+  text-indent: 15px;
+}
+&#10;#ejgnwxutga .gt_indent_4 {
+  text-indent: 20px;
+}
+&#10;#ejgnwxutga .gt_indent_5 {
+  text-indent: 25px;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    &#10;    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id=".metric">.metric</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id=".estimator">.estimator</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id=".estimate">.estimate</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers=".metric" class="gt_row gt_left">roc_auc</td>
+<td headers=".estimator" class="gt_row gt_left">binary</td>
+<td headers=".estimate" class="gt_row gt_right">0.7559771</td></tr>
+  </tbody>
+  &#10;  
+</table>
+</div>
 
 ``` r
 ens_test_pred %>% 
@@ -1884,7 +2689,7 @@ ens_test_pred %>%
     autoplot()
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-21-1.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-23-1.png" width="672" />
 
 ``` r
 ens_test_pred %>% 
@@ -1903,7 +2708,7 @@ ens_test_pred %>%
     plot.background = element_rect(fill = "white"))
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-21-2.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-23-2.png" width="672" />
 
 ``` r
 gaincurve <- gain_curve(data = ens_test_pred, truth = y, .pred_yes, event_level = "second") 
@@ -1911,7 +2716,7 @@ gaincurve <- gain_curve(data = ens_test_pred, truth = y, .pred_yes, event_level 
 autoplot(gaincurve)
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-21-3.png" width="672" />
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-23-3.png" width="672" />
 
 End parallel processing
 
@@ -1921,6 +2726,6 @@ stopCluster(cl)
 
 ### Conclusion
 
-The gain curve insightfully reveals that with this approach, we can identify approximately half of the potential clients by reaching out to only a select percentage (9.37%) of the total call list. While extending the campaign to 50% of the ranked calls, it successfully identifies 98.47% of the potential subscribers. This level of efficiency in client targeting is a crucial factor in optimizing the cost policy of any marketing campaign. This approach enables a more judicious allocation of resources, ensuring that efforts and investments are concentrated on the most promising leads, thereby enhancing the overall cost-effectiveness and success rate of the campaigns.
+The gain curve insightfully reveals that with this approach, we can identify approximately half of the potential clients by reaching out to only a select percentage (19.1%) of the total call list. While extending the campaign to 50% of the ranked calls, it successfully identifies 79.39% of the potential subscribers. This level of efficiency in client targeting is a crucial factor in optimizing the cost policy of any marketing campaign. This approach enables a more judicious allocation of resources, ensuring that efforts and investments are concentrated on the most promising leads, thereby enhancing the overall cost-effectiveness and success rate of the campaigns.
 
 Furthermore, there is ample scope for further refinement and improvement of the model. A deeper analysis, including more extensive exploratory data analysis and feature engineering, as well as a more thorough hyperparameter tuning, holds the potential to elevate the model’s performance even further. Additionally, conducting a sensitivity analysis to understand the impact and importance of each variable could provide invaluable insights. This analysis would not only enhance the model’s predictive accuracy but also offer strategic insights into the factors most influential in determining customer responses to telemarketing efforts.
