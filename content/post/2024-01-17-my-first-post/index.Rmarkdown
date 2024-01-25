@@ -29,7 +29,7 @@ Welcome to my first blog post! As a quant data scientist, I often find myself wo
 
 ### Setting Up Your Environment
 
-First, ensure that you have the necessary packages installed, the load these packages into your R session:
+First, ensure that you have the necessary packages installed, then load these packages into your R session:
 
 ```{r}
 library(tidyquant)
