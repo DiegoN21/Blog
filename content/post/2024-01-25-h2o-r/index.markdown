@@ -36,7 +36,7 @@ library(h2o)
 
 
 ```r
-# Load the data
+# Load data
 data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00222/bank.zip"
 download.file(data_url, destfile = "bank.zip")
 unzip("bank.zip", files = "bank.csv", exdir = "data")
@@ -102,8 +102,8 @@ h2o.ls()
 
 ```
 ##                     key
-## 1  test_data_sid_85e5_3
-## 2 train_data_sid_85e5_1
+## 1  test_data_sid_b82b_3
+## 2 train_data_sid_b82b_1
 ```
 ### Model Setup
 

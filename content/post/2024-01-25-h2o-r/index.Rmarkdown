@@ -36,7 +36,7 @@ library(h2o)
 ```
 
 ```{r}
-# Load the data
+# Load data
 data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00222/bank.zip"
 download.file(data_url, destfile = "bank.zip")
 unzip("bank.zip", files = "bank.csv", exdir = "data")
