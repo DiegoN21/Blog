@@ -102,8 +102,8 @@ h2o.ls()
 
 ```
 ##                     key
-## 1  test_data_sid_b82b_3
-## 2 train_data_sid_b82b_1
+## 1  test_data_sid_bc12_3
+## 2 train_data_sid_bc12_1
 ```
 ### Model Setup
 
