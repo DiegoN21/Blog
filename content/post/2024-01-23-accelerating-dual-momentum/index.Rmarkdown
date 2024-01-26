@@ -36,7 +36,7 @@ On the final trading day of each month, the strategy requires the computation of
 If the momentum score of VFINX exceeds that of VINEX and is also positive, the strategy dictates an allocation to VFINX at the month's close. Conversely, if the VINEX momentum score surpasses that of VFINX and remains positive, the strategy prescribes an investment in VINEX at the month's close. In scenarios where neither of the above conditions is satisfied, indicating a lack of positive momentum in both VFINX and VINEX, the strategy adopts a defensive posture. It transitions the entire portfolio to long-term U.S. Treasuries (VUSTX). The strategy is 100% allocated to one asset each month.
  
 ### Setting Up Your Environment
-First, ensure that you have the necessary packages installed, then load these packages into your R session:
+First, ensure that you have the necessary packages installed, then load these packages into your R session.
 ```{r}
 library(tidyverse)
 library(tidyquant)
