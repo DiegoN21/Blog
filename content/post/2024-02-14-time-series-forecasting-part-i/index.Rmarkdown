@@ -1,0 +1,923 @@
+---
+title: Time Series Forecasting Part I
+author: ''
+date: '2024-02-14'
+slug: time-series-forecasting-part-i
+categories: []
+tags: []
+subtitle: 'EDA & ML Algorithms'
+summary: ''
+authors: []
+lastmod: '2024-02-14T17:53:37-03:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Introduction
+
+In this initial post, which will be part of a series of publications on forecasting time series, we will explore how to predict the future demand for bike rentals in Washington, D.C.'s Bike Sharing program. We'll demonstrate the use of various tools from the timetk and modeltime libraries, developed by Matt Dancho, to accurately forecast bicycle demand. Our primary focus will be on predicting bike demand for the last two months of our dataset, utilizing a blend of statistical methods and machine learning techniques. This approach will allow us to uncover insights and patterns within the data, enabling effective demand forecasting for the bike sharing service. For the sake of simplicity, we will assume that we have perfect foresight regarding future weather conditions, meaning that weather forecasts are 100% accurate. This assumption allows us to treat weather variables as known quantities when predicting future bike rental demand two months ahead.
+
+### Overview of the Dataset
+
+**Data Overview**
+
+The Bike Sharing Dataset from the UCI Machine Learning Repository covers daily bike rental counts between 2011 and 2012 (731 records) in the Capital Bikeshare system, along with weather and seasonal variables that can be used as predictors. A description of each variable in our database is detailed below:
+
+**Input Variables**
+
+
+- Instant: Record index
+- Dteday: Date
+- Season: Season (1: spring, 2: summer, 3: fall, 4: winter)
+- Year (yr): Year (0: 2011, 1: 2012)
+- Month (mnth): Month (1 to 12)
+- Hour (hr): Hour of the day (0 to 23, only in hourly dataset)
+- Holiday: Weather day is a holiday or not
+- Weekday: Day of the week
+- Workingday: If day is neither weekend nor holiday is 1, otherwise is 0
+- Weather Situation (weathersit):
+    - 1: Clear, Few clouds, Partly cloudy
+    - 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+    - 3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds     
+    - 4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+- Temp: Normalized temperature in Celsius
+- Atemp: Normalized feeling temperature in Celsius
+- Humidity (hum): Normalized humidity
+- Windspeed: Normalized wind speed
+- Casual: Count of casual users
+- Registered: Count of registered users
+
+**Output Variable**
+
+
+- Count: Count of total rental bikes including both casual and registered 
+
+In the process of preparing our dataset for analysis, we drop some unnecessary columns. Firstly, we chose to retain only the "temp" variable, discarding "atemp" due to its redundancy. Additionally, we remove the "casual" and "registered" variables, as their summed values are already represented by the "count" variable. The "instant" column, which simply serves as a sequence number for the rows, its also dropped. Furthermore, we decide to remove the year and month variables, planning to recreate these along with additional variables from the "dteday" column to enhance our dataset's utility for predictive modeling.
+
+### Setting Up and Loading the Data
+
+**Libraries**
+
+Before diving into our analysis, it's crucial to ensure all necessary libraries are loaded. If any libraries are not already installed, we should address this as the first step. 
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(modeltime)
+library(timetk)
+library(lubridate)
+library(DataExplorer)
+library(gt)
+library(tidyquant)
+library(rules)
+```
+
+**Data Download**
+```{r, message = FALSE,eval=FALSE}
+data_url <- "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip"
+download.file(data_url, destfile = "bike.zip")
+unzip("bike.zip", files = "day.csv", exdir = "data")
+bike_data <- read_csv("data/day.csv") 
+bike_data <- as_tibble(bike_data)
+```
+```{r,include=FALSE}
+bike_data <- readRDS("data/bike_data.rds")
+```
+
+
+**Data Cleaning**
+To proceed with the data preparation, we'll remove the specified variables and convert character variables to factors.
+```{r}
+bike_tbl <- bike_data %>% 
+    select(-instant, -yr, -mnth, -weekday, -atemp, -casual, -registered) %>% 
+    rename(date=dteday, weather = weathersit) %>% 
+    mutate(
+           season = season %>% as_factor() %>% fct_recode(winter="1", spring="2", summer="3", fall="4"),
+           weather = weather %>% as_factor() %>% fct_recode(clear="1",cloudy="2",light_rain = "3", heavy_rain="4") 
+           ) %>% 
+    mutate(across(c("holiday","workingday"),as_factor))
+
+gt(bike_tbl %>% head())
+```
+
+### Data Splitting
+
+We will separate the last 2 months of our time series data to serve as our test dataset, which will be used in assessing the performance of our predictive models. This approach allows us to evaluate how well our predictive models can forecast bike rental demand under unseen conditions, closely mimicking real-world application scenarios.
+```{r}
+splits <- bike_tbl %>%
+    time_series_split(
+        date_var = date, 
+        assess = "2 month",
+        cumulative = TRUE
+    )
+
+# Visualize the training and test sets
+splits %>%
+    tk_time_series_cv_plan() %>%
+    plot_time_series_cv_plan(date, cnt)
+
+# Splitting Dates
+training(splits) %>% tk_summary_diagnostics(date) %>% select(1:4) %>% 
+    bind_rows(
+        testing(splits) %>% tk_summary_diagnostics(date) %>% select(1:4)) %>% 
+    mutate(data = c("training","testing"), .before=0) %>% gt()
+
+bike_train <- training(splits)
+bike_test <- testing(splits)
+```
+
+### EDA
+
+We will proceed to explore the data using mainly the training set to avoid modeling or incorporating trends in the series that are specific to the test set during our data preprocessing phase. Our aim is to prevent any forward-looking biases that could compromise the integrity of our model's evaluation, ensuring that our predictions are based solely on historical data without any inadvertent insight into future trends. This approach is crucial for maintaining the validity of our predictive models and ensuring that their performance accurately reflects their ability to generalize to unseen data.
+
+**Features Overview**
+
+```{r}
+glimpse(bike_train)
+```
+
+Upon examining our training series, it appears that, aside from the initial observations, the variance does not significantly increase over time; therefore, we will proceed without applying any transformations. If a transformation is apllied, given the positive range of our response variable, a Box-Cox transformation could be utilized. It's crucial to apply this transformation as part of our preprocessing recipe rather than to the complete series to avoid deriving the lambda parameters based on observations only known in the future. 
+```{r}
+bike_train %>% plot_time_series(date, cnt, .smooth = FALSE, .interactive = TRUE)
+```
+
+We check duplicated values, missing values and for any missing days by constructing a daily date series spanning from the start date to the end date of our original series. By using an anti_join operation, we evaluate if there are any days in the created series that are not present in the original series. As observed, we have neither missing dates, nor duplicated values, nor missing data.
+```{r}
+n_duplicated_values <- duplicated(bike_tbl) %>% sum()
+
+plot_missing(bike_tbl, ggtheme = theme_minimal()) 
+
+sim_dates <- tibble(date = tk_make_timeseries(start_date = "2011-01-01",end_date = "2012-12-31", by = "day"))
+n_missing_dates <- sim_dates %>% anti_join(bike_tbl) %>% count()
+```
+
+**Univariate Analysis**
+
+The "weather" variable lacks days with "heavy rain" and this category is also absent in the testing set, so we don't need to worry about it. Otherwise, we would use a step_novel in our recipe to handle this scenario.Regarding the numeric variables, at first glance, we can notice an outlier value of 0 for the humidity variable, which for simplicity, we will simply remove.
+```{r}
+plot_bar(bike_train, ggtheme = theme_tq()) 
+plot_histogram(bike_train)
+```
+```{r, eval=FALSE}
+bike_tbl %>% select(where(is.factor)) %>% map(~prop.table(table(.)))
+```
+```{r}
+bike_tbl %>% arrange(hum) %>% slice(1) %>% gt()
+bike_train <- bike_train %>% filter(hum != 0)
+```
+
+**Seasonal Analysis**
+
+We plot date features against bike rentals to understand the seasonal patterns in our series. Despite the increasing trend in the series,at first glance we can observe a pronounced increase in bicycle usage during the warmer months, while daily seasonality is not verified.
+```{r}
+bike_train %>%
+    plot_seasonal_diagnostics(date, cnt, .interactive = TRUE, .feature_set = c("wday.lbl", "month.lbl","quarter"))
+```
+
+```{r, eval=FALSE, include=FALSE}
+bike_tbl %>%
+    plot_acf_diagnostics(date, cnt, .lags = 1000)
+
+bike_tbl %>% plot_acf_diagnostics(
+ date,
+ diff_vec(cnt, lag = 1), # Difference the value column
+ )
+
+bike_tbl %>% plot_acf_diagnostics(
+ date,
+ cnt,
+ .ccf_vars = c(temp,hum,windspeed),
+ .show_ccf_vars_only = TRUE
+ )
+```
+
+**Anomaly Detection**
+
+To identify anomalies in our series, we begin with outlier analysis by detrending and removing seasonality through STL Decomposition, isolating the remainder for anomaly detection. This approach utilizes an Interquartile Range (IQR) method applied to the STL's residual component to identify outliers. In the subsequent graph, a notable number of unusual observations emerge. After cleansing these outliers, the series' alignment improves significantly. Integrating outlier normalization into our preprocessing steps will be crucial.
+```{r}
+# STL Decomposition
+bike_train %>%
+    plot_stl_diagnostics(
+        .date_var    = date, 
+        .value       = cnt, 
+        .frequency   = 7, 
+        .trend       = "auto", 
+        .interactive = F, 
+        .feature_set = c("observed","season","trend","remainder")
+        )
+# Anomaly Visualitazion
+bike_train %>%
+    plot_anomaly_diagnostics(
+        .date_var      = date, 
+        .value         = cnt,
+        .alpha         = 0.05, # IQR parameter
+        .max_anomalies = 0.01 # Maximum number of anomalies allowed
+        )
+
+# Outlier Removal
+bike_train %>%
+  anomalize(
+      .date_var      = date, 
+      .value         = cnt,
+      .iqr_alpha     = 0.05,
+      .max_anomalies = 0.01,
+      .message       = FALSE
+  ) %>%
+    plot_anomalies_cleaned(.date_var = date)
+```
+```{r, eval=FALSE, include=FALSE}
+#bike_tbl %>%
+#    tk_augment_lags(.value = cnt, .lags = c(1, 2, 6, 14))
+#
+#bike_tbl %>%
+#    tk_augment_fourier(date, .periods = c(7,14, 30, 90, 365), .K = 2) %>%
+#    
+#    plot_time_series_regression(
+#        date,
+#        .formula = cnt ~ as.numeric(date) + . - date,
+#        .show_summary = TRUE
+#    )
+#
+#bike_tbl %>%
+#    plot_time_series_regression(
+#        .date_var = date,
+#            cnt  ~ 
+#            as.numeric(date) +
+#            wday(date, label = TRUE) +
+#            splines::ns(as.numeric(date), df=3)+
+#            month(date, label = TRUE),
+#        .show_summary = TRUE)
+```
+## Recipes
+
+```{r,eval=FALSE, include=FALSE}
+#Normalizar los predictores no afecta el forecast de una reg lineal. Introducir step_dummy no cambio nada porque la funcion #lm ya puede trabajar con factores. La introduccion del log a cnt aun no dice mucho. 
+#Metiendo lag 1 mejora una banda . Lo que hace el lag uno es que yo este forcasteando en mi periodo de testing dia por dia #digamos, porque yo voy contando con la info del dia anterior step_lag(cnt, lag = 1). ergo no lo usamos.
+#Incluir fourier usando ya dummys para los componentes estacionales no agrega nada en este caso. Fourier puede ser util #uando tenemos relaciones estacionales mas complejas. 
+#Analizamos la efectividad del step_timeseries: date_year va, date_half no va, date_quarter no agrega casi nada,
+#date_month casi nada, date_month.lbl re va, date_day no va, date_wday casi nada, date_wday.lbl va un toque, date_mday no va #ni solo ni como factor, date_Qday no va como nada, date_yday nada, date_mweek nada, date_week nada, date_mday7 casi nada.
+#holiday no aporta nada, porque tengo working day.
+```
+Let's create two recipes for apllying to our models. The first, a basic recipe, involves adding date features using the step_timeseries_signature function, selecting the day of the week, the month, and the week of the month while removing all other date-related features. We'll normalize (center and scale) the numeric variables, convert factor variables into dummies, and finally, remove outliers. The other recipe is build on the basic one by adding Fourier components. For the Fourier series, considering our daily time series, we specify an annual frequency period (365 days), quarterly (91.25 days), and monthly (31.25 days), along with a maximum order/smoothness (K) of 2.
+```{r}
+recipe_spec <- recipe(cnt ~ ., data = bike_train) %>%
+    step_timeseries_signature(date) %>% 
+    step_mutate(date_year = as.factor(date_year),
+                date_mday7 = as.factor(date_mday7),
+                date_month = as.factor(date_month),
+                date_wday = as.factor(date_wday)) %>% 
+    step_rm(
+        ends_with(".iso"), ends_with(".xts"),
+        contains("hour"), contains("minute"), 
+        contains("second"), contains("am.pm"),
+        date_mday, date_half, date_quarter, 
+        date_month.lbl, date_day, date_qday, date_wday.lbl,
+        date_yday, date_mweek, date_week, contains("date_week")
+            ) %>%
+    update_role(date, new_role = "date_var") %>%  
+    step_normalize(all_numeric_predictors()) %>%
+    step_dummy(all_nominal())  %>% 
+    step_ts_clean(cnt) 
+
+recipe_spec_fourier <- recipe_spec %>% 
+        step_fourier(date, period = c(30.42,91.25,365), K = 2)
+```
+```{r, eval=FALSE, include=FALSE}
+bike_train %>% plot_time_series_regression(date, cnt ~ fourier_vec(date, period=c(30.42,91.25,365),K=2))
+```
+Quick look to our basic recipe applied to the training data
+```{r}
+gt(juice(prep(recipe_spec)) %>% head())
+```
+
+## Predictive Models
+
+We will employ both specific time series models such as ARIMA, ETS, and TBATS, as well as ML models and Boosted models that combine both approaches. For simplicity, we'll use the default arguments for each ML model. Fine-tuning will be apllied in following posts.
+
+### ARIMA Models
+The arima_reg function uses by default a miximum order of (5,2,5) for the non-seasonal term and (2,1,2) for the seasonal term.
+
+```{r,include=FALSE}
+wf_fit_arima <- readRDS("models/wf_fit_arima.rds")
+wf_fit_arima_fourier <- readRDS("models/wf_fit_arima_fourier.rds")
+```
+
+```{r,eval=FALSE}
+model_fit_auto_arima <- arima_reg(seasonal_period = 7) %>%
+    set_engine("auto_arima", 
+               stepwise=FALSE, # Search for all models by setting False, more time consuming
+               trace=TRUE
+               ) 
+wf_fit_arima <- workflow() %>% 
+  add_recipe(recipe_spec %>% 
+  update_role(date, new_role = "predictor") %>% 
+  step_rm(contains("date_wday"))) %>% #Remove date_wday for preventing rank deficient error
+  add_model(model_fit_auto_arima) %>% 
+  fit(bike_train)
+
+wf_fit_arima_fourier <- workflow() %>% 
+  add_recipe(recipe_spec_fourier %>% 
+    update_role(date, new_role = "predictor") %>% 
+    step_rm(contains("date_wday"))) %>% 
+  add_model(model_fit_auto_arima) %>% 
+  fit(bike_train)
+```
+
+
+```{r}
+arima_calibration_tbl <- modeltime_table(
+    wf_fit_arima,
+    wf_fit_arima_fourier
+    ) %>%
+    modeltime_calibrate(testing(splits)) %>% 
+    mutate(.model_desc = str_remove_all(.model_desc, "RESSION WITH|ERRORS") %>% str_c(c(""," Fourier")))
+    
+gt(arima_calibration_tbl %>% modeltime_accuracy()) 
+
+arima_calibration_tbl %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+```{r,include=FALSE, eval=FALSE}
+saveRDS(wf_fit_arima,"models/wf_fit_arima.rds")
+saveRDS(wf_fit_arima_fourier,"models/wf_fit_arima_fourier.rds")
+```
+
+### Prophet Model
+Supports as xregs both numeric and factor variables, dates not used as xregs.
+```{r}
+model_spec_prophet <- prophet_reg(
+    changepoint_num    = 25, #default 25, number of potential changepoints for trend
+    growth = "linear", #default linear, linear or logistic for the trend
+    changepoint_range  = 0.8, #default 0.8, changepoint limit before the proportion specified
+    seasonality_daily  = "auto", #default auto
+    seasonality_yearly = "auto", #default auto
+    seasonality_weekly = "auto", #default auto
+    season             = "additive" #default additive, additive or multiplicative season
+) %>%
+    set_engine("prophet")
+
+wfs_prophet <- workflow_set(preproc = list(rec = recipe_spec %>% update_role(date, new_role = "predictor"),
+                                      rec_fourier = recipe_spec_fourier %>% update_role(date, new_role = "predictor")
+                                      ),
+                            models = list(prophet=model_spec_prophet),cross = TRUE)
+
+wfs_fit_prophet <- wfs_prophet %>% 
+    modeltime_fit_workflowset(data = bike_train,
+                                              control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE))
+
+wfs_fit_prophet %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_prophet %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ETS Models
+Some of these models do not accept external regressors (xregs), therefore their performance is significantly lower than the rest.
+```{r}
+# ETS [error, trend, season], cant use xregs, only one season period
+model_fit_ets <- exp_smoothing(
+    seasonal_period   = NULL, #default NULL = "auto"
+    error             = NULL, #default NULL = "auto"
+    trend             = NULL, #default NULL = "auto"
+    season            = NULL, #default NULL = "auto"
+    damping           = NULL, #default NULL = "auto", to avoid over-forecast, this "dampens" the trend
+    smooth_level      = NULL, #default NULL = "auto"
+    smooth_trend      = NULL, #default NULL = "auto"
+    smooth_seasonal   = NULL, #default NULL = "auto"
+    ) %>%
+    set_engine("ets") %>%
+    fit(cnt ~ date, data = bike_train)
+
+# TBATS cant use xregs, supports multiple seasonal periods
+model_fit_tbats <- seasonal_reg(
+    seasonal_period_1 = NULL, #default NULL = "auto"
+    seasonal_period_2 = NULL, #default NULL = "auto"
+    seasonal_period_3 = NULL, #default NULL = "auto"
+    ) %>%
+    set_engine("tbats", 
+               use.box.cox     = NULL, #default NULL = "auto"
+               use.arma.errors = TRUE  #default TRUE
+               ) %>%
+    fit(cnt ~ date, bike_train)
+
+#STLM ETS cant use xregs, supports multiple seasonal periods
+model_fit_stlm_ets <- seasonal_reg(
+    seasonal_period_1 = NULL, #default NULL = "auto"
+    seasonal_period_2 = NULL, #default NULL = "auto"
+    seasonal_period_3 = NULL #default NULL = "auto"
+    ) %>%
+    set_engine("stlm_ets", 
+               lambda = NULL, #default NULL = "auto"
+               ) %>%
+    fit(cnt ~ date, data = bike_train)
+
+#STLM Arima can use xregs and multiple seasonal periods
+model_fit_stlm_arima <- seasonal_reg(
+    seasonal_period_1 = NULL, #default NULL = "auto"
+    seasonal_period_2 = NULL, #default NULL = "auto"
+    seasonal_period_3 = NULL #default NULL = "auto"
+        ) %>%
+    set_engine("stlm_arima", 
+               lambda = NULL #default NULL = "auto"
+              ) 
+
+wf_fit_stlm_arima_xreg <- workflow() %>%
+    add_model(model_fit_stlm_arima) %>%
+    add_recipe(recipe_spec %>% 
+                   update_role(date, new_role = "predictor") %>% 
+                   step_rm(contains("date_wday"))
+               ) %>%
+    fit(bike_train)
+
+wf_fit_stlm_arima_xreg_fourier <- workflow() %>%
+    add_model(model_fit_stlm_arima) %>%
+    add_recipe(recipe_spec_fourier %>% 
+                   update_role(date, new_role = "predictor") %>% 
+                   step_rm(contains("date_wday"))
+               ) %>%
+    fit(bike_train)
+
+ets_calibration_tbl <- modeltime_table(
+    model_fit_ets,
+    model_fit_tbats,
+    model_fit_stlm_ets,
+    wf_fit_stlm_arima_xreg,
+    wf_fit_stlm_arima_xreg_fourier
+    ) %>%
+    modeltime_calibrate(testing(splits)) %>% 
+    mutate(.model_desc = str_remove_all(.model_desc, "RESSION WITH|ERRORS") %>% 
+               str_c( c("","","","","Fourier"))
+           )
+
+ets_calibration_tbl %>% modeltime_accuracy() %>% gt()
+
+ets_calibration_tbl %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ML Linear Models
+```{r}
+model_spec_lm <- linear_reg() %>%
+    set_engine("lm")
+
+model_spec_glmnet <- linear_reg(
+    penalty = 0.1, # No default
+    mixture = 0.5 # 0 Ridge, 1 Lasso, else Elastic
+) %>%
+    set_engine("glmnet")
+
+wfs_linear <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(lm=model_spec_lm, glm=model_spec_glmnet),cross = TRUE)
+
+wfs_fit_linear <- wfs_linear %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_linear %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_linear %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+
+### Mars Model
+```{r}
+model_spec_mars <- mars(
+    mode         = "regression",
+    num_terms    = NULL, #default is min(200, max(20, 2 * ncol(x))) + 1
+    prod_degree  = 1, #default = 1
+    prune_method = "backward" #default backward
+) %>%
+    set_engine("earth",
+               endspan = 0 #default=0
+               )
+
+wfs_mars <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(mars=model_spec_mars),cross = TRUE)
+
+wfs_fit_mars <- wfs_mars %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_mars %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_mars %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ML SVM Models 
+Categorical variables must be converted to dummy variables, numeric predictors should be normalized. 
+```{r, include=FALSE, eval=FALSE}
+# SVR seeks to find a hyperplane that best fits the data points in a continuous space.
+# SVR, the margin is defined as the error tolerance of the model, which is also called
+# the ε-insensitive tube. This tube allows some deviation of the data points from the 
+# hyperplane without being counted as errors. The hyperplane is the best fit possible 
+# to the data that fall within the 𝜖-insensitive tube.
+# Prep Requirements
+# Categorical to dummy, Normalization predictors.
+# Kernel: helps us find a hyperplane in the higher dimensional space
+```
+```{r}
+model_spec_svm_poly <- svm_poly(
+    mode = "regression", 
+    cost = 1, #default=NULL=1, as C increases, our tolerance for points outside of ϵ ("intensitive tube) also increases 
+    degree = 1, #default=NULL=1, polynomial degree of interaction
+    scale_factor = 1, #default=NULL=1, polynomial scaling factor
+    margin = 0.1 #default=NULL=0.1 how far the decision boundaries are from the hyperplane (the ε-insensitive tube)
+) %>%
+    set_engine("kernlab")
+
+model_spec_svm_linear <- svm_linear(
+    mode = "regression", 
+    cost = 1, 
+    margin = 0.1 ) %>%
+    set_engine("kernlab")
+
+model_spec_svm_rbf <- svm_rbf(
+    mode = "regression",
+    cost = 1, 
+    rbf_sigma = NULL, #There is no default for the radial basis function kernel parameter. kernlab estimates it from the data using a heuristic method.
+    margin = 0.1
+) %>%
+    set_engine("kernlab")
+
+set.seed(123) #For replicating the rbf_sigma
+wfs_svm <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                        models = list(svm_linear=model_spec_svm_linear,
+                                          svm_poly=model_spec_svm_poly,
+                                          svm_rbf=model_spec_svm_rbf),
+                        cross = TRUE)
+
+wfs_fit_svm <- wfs_svm %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_svm %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_svm %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ML KNN Model
+Categorical variables must be converted to dummy variables, numeric predictors should be normalized. 
+```{r}
+model_spec_knn <- nearest_neighbor(
+    mode = "regression",
+    neighbors = 5, #default=5
+    dist_power = 2, #default=2, used in calculating Minkowski distance. 1 Manhattan, 2 Euclidean
+    weight_func = "optimal" #default="optimal", kernel function used to weight distances between samples.
+    ) %>%
+    set_engine("kknn")
+
+wfs_knn <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(knn=model_spec_knn),cross = TRUE)
+
+wfs_fit_knn <- wfs_knn %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_knn %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_knn %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+### ML Random Forest Model
+```{r}
+model_spec_rf <- rand_forest(
+    mode = "regression", 
+    mtry = NULL, #number of predictors that will be randomly sampled at each split #default floor(ncol(x)/3)
+    trees = 1000, #default=500
+    min_n = 5 #default=5 for reg, minimum number of data points in a node that are required for the node to be split further
+) %>%
+    set_engine("randomForest")
+
+set.seed(123)
+wfs_rf <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(rf=model_spec_rf),cross = TRUE)
+
+
+wfs_fit_rf<- wfs_rf %>% 
+    modeltime_fit_workflowset(
+        data = bike_train,
+        control = control_fit_workflowset(
+            verbose   = TRUE, 
+            allow_par = TRUE,
+            cores = 1 #All physical cores
+            )
+        )
+
+wfs_fit_rf %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_rf %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+### ML XGBOOST Model
+
+Factor variables should be converted to dummy variables
+```{r}
+model_spec_boost <- boost_tree(
+    mode           = "regression",
+    mtry           = NULL, 
+    trees          = 15, #default 15
+    min_n          = 1, #default 1 
+    tree_depth     = 6, #default 6
+    learn_rate     = 0.3, # default=0.3, also called shrinkage param
+    loss_reduction = 0 ,#default=0, loss reduction needed to split further
+    sample_size    = 1, #default=1, data exposed to be fitted
+    stop_iter      = NULL #default=Inf, number of iterations without improvement before stopping
+) %>%
+    set_engine("xgboost")
+
+set.seed(123)
+wfs_xgboost <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(xgboost=model_spec_boost),cross = TRUE)
+
+wfs_fit_xgboost <- wfs_xgboost %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_xgboost %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_xgboost %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ML Cubist Model
+```{r}
+model_spec_cubist <- cubist_rules(
+    committees = 1, #default=1, non-negative integer (no greater than 100) for the number of members of the ensemble
+    neighbors  = 0, #default=0,integer between 0/9 for the number of training set instances that are used to adjust the prediction
+    max_rules  = NA_integer_ #default=NA_integer, the largest number of rules
+) %>%
+    set_engine("Cubist")
+
+set.seed(123)
+wfs_cubist <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(cubist=model_spec_cubist),cross = TRUE)
+
+wfs_fit_cubist <- wfs_cubist %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_cubist %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_cubist %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+### ML Single Layer Neural Network Model
+Categorical variables must be converted to dummy variables, numeric predictors should be normalized. 
+```{r}
+model_spec_nnet <- mlp(
+    mode = "regression",
+    hidden_units = 10,  #Default=none, number of units in the hidden model
+    penalty      = 0, #Default=0, non-negative numeric value for the amount of weight decay. Amount of regularization.
+    dropout      = NULL, #number between 0/1 denoting the proportion of model parameters randomly set to zero during model training.
+    epochs       = 100, #Default=100, Integer for the number of training iterations.
+    activation   = NULL, #type of relationship between the original predictors and the hidden unit layer. The activation function between the hidden and output layers is automatically set to either "linear" or "softmax" depending on the type of outcome. Possible values are: "linear", "softmax", "relu", and "elu".
+    learn_rate   = NULL #A number for the rate at which the boosting algorithm adapts from iteration-to-iteration. Also called shrinkage parameter.
+    ) %>%
+    set_engine("nnet")
+
+set.seed(123)
+wfs_nnet <- workflow_set(preproc = list(rec = recipe_spec,
+                                      rec_fourier = recipe_spec_fourier
+                                      ),
+                            models = list(nnet=model_spec_nnet),cross = TRUE)
+
+wfs_fit_nnet <- wfs_nnet %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_nnet %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_nnet %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+### ML Neural Network + Arima Model
+For the external regressors (xregs), categorical and numerical variables are supported. NNAR (p,P,k)[m] (non seasonal ar, seasonal ar, hidden units)[periodicity]
+```{r}
+model_spec_nnetar <- nnetar_reg(
+    seasonal_period = "auto", #default=auto
+    non_seasonal_ar = 1, #default optimal number of lags (according to the AIC) chosen from the optimal linear model fitted to the seasonally adjusted data.
+    seasonal_ar     = 1, #default 1
+    hidden_units    = 10, #default=10 is half of the number of input nodes (including external regressors, if given) plus 1.
+    penalty         = 0, #A non-negative numeric value for the amount of weight decay.
+    num_networks    = 20, #Default 10, differs from forecast implementation (20). Number of networks to fit with different random starting weights. These are then averaged when producing forecasts. 
+    epochs          = 100 #default 100
+) %>%
+    set_engine("nnetar")
+
+set.seed(123)
+wfs_nnetar <- workflow_set(preproc = list(rec = recipe_spec %>% update_role(date, new_role = "predictor"),
+                                      rec_fourier = recipe_spec_fourier %>% update_role(date, new_role = "predictor")
+                                      ),
+                            models = list(nnetar=model_spec_nnetar),cross = TRUE)
+
+wfs_fit_nnetar <- wfs_nnetar %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_nnetar %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_nnetar %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+### ML Boosted Algorithms
+
+We'll explore Arima Boost and Prophet Boost models. By using default arguments without performing hyperparameter tuning, the performance presented is not optimal. This strategy leverages the strengths of each model: the base model (either ARIMA or Prophet) captures the underlying trend effectively, while XGBOOST, known for its powerful capability to model complex relationships, handles the seasonality and additional nuances in the data. However, to unlock the full potential of this combined approach, fine-tuning the hyperparameters of both the base models and XGBOOST is essential for achieving optimal performance.
+
+#### Prophet Boost
+```{r}
+model_spec_prophet_boost <- prophet_boost(
+    # Prophet
+    growth = "linear",
+    changepoint_num    = 25,
+    changepoint_range  = 0.8,
+    seasonality_daily  = FALSE,
+    seasonality_weekly = FALSE, 
+    seasonality_yearly = FALSE, 
+    # Xgboost
+    mtry           = 0.75, #Proportion of cols 
+    min_n          = 1, 
+    tree_depth     = 6, 
+    learn_rate     = 0.3, 
+    loss_reduction = 0, 
+    trees          = 15,
+    sample_size    = 1,
+    stop_iter      = NULL
+) %>%
+    set_engine(
+        "prophet_xgboost", 
+        counts = FALSE #Specify `counts = TRUE` to tell it not to use a proportion of columns and point number of cols.
+    ) 
+
+set.seed(123)
+wfs_prophet_boost <- workflow_set(preproc = list(rec = recipe_spec %>% update_role(date, new_role = "predictor"),
+                                      rec_fourier = recipe_spec_fourier %>% update_role(date, new_role = "predictor")
+                                      ),
+                            models = list(prophet_boost=model_spec_prophet_boost),cross = TRUE)
+
+wfs_fit_prophet_boost <- wfs_prophet_boost %>% 
+    modeltime_fit_workflowset(data = bike_train,
+                              control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                              )
+
+wfs_fit_prophet_boost %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_prophet_boost %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+#### Arima Boost
+```{r}
+model_spec_arima_boost <- arima_boost(
+    seasonal_period = 1, #Non seasonal
+    # Xgboost
+    mtry           = 0.75,
+    min_n          = 1,
+    tree_depth     = 6,
+    learn_rate     = 0.3,
+    loss_reduction = 0,
+    trees          = 15,
+    sample_size    = 1,
+    stop_iter      = NULL 
+) %>% 
+    set_engine(
+        "auto_arima_xgboost", 
+        counts = FALSE  
+    )
+    
+set.seed(123)
+wfs_arima_boost <- workflow_set(preproc = list(rec = recipe_spec %>% update_role(date, new_role = "predictor"),
+                                      rec_fourier = recipe_spec_fourier %>% update_role(date, new_role = "predictor")
+                                      ),
+                            models = list(arima_boost=model_spec_arima_boost),cross = TRUE)
+
+wfs_fit_arima_boost <- wfs_arima_boost %>% modeltime_fit_workflowset(data = bike_train, 
+                                                control = control_fit_workflowset(verbose   = TRUE, allow_par = FALSE)
+                                                )
+
+wfs_fit_arima_boost %>%
+  modeltime_calibrate(testing(splits)) %>%
+  modeltime_accuracy() %>% gt()
+
+wfs_fit_arima_boost %>%
+  modeltime_calibrate(testing(splits)) %>%
+    modeltime_forecast(
+        new_data    = testing(splits), 
+        actual_data = bike_tbl
+    ) %>%
+    plot_modeltime_forecast(.conf_interval_show = FALSE)
+```
+
+## Conclusion
+
+The objective of this first post was to showcase a 'tidy' approach to modeling and exploratory data analysis (EDA) of time series through libraries such as `timetk` and `modeltime`. The use of all prediction algorithms lacks optimization in their arguments, and we will see how they can be refined and combined in subsequent posts to enhance performance.
