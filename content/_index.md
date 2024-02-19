@@ -199,7 +199,7 @@ sections:
 #    title: Popular Topics
 #  design:
 #    columns: "2"
-- block: contact
+- block: contact info
   content:
     address:
       city: Buenos Aires
@@ -242,7 +242,7 @@ sections:
     text: I welcome your queries and thoughts, so please don't hesitate to contact me.
     title: Contact
   design:
-    columns: "2"
+    columns: "1"
   id: contact
 title: ""
 type: landing
