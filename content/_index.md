@@ -234,10 +234,10 @@ sections:
       netlify:
         captcha: false
       provider: netlify
-#    office_hours:
-#    - Monday 10:00 to 13:00
-#    - Wednesday 09:00 to 10:00
-#    phone: 888 888 88 88
+    office_hours:
+    - Monday 10:00 to 13:00
+    - Wednesday 09:00 to 10:00
+    phone: 888 888 88 88
     subtitle: null
     text: I welcome your queries and thoughts, so please don't hesitate to contact me.
     title: Contact
