@@ -14,7 +14,7 @@ main:
     url: '#contact'
     weight: 60
   - name: CV
-    url: "themes/theme-academic-cv/static/resume.pdf"
+    url: uploads/resume.pdf
     weight: 40
 
 
