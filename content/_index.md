@@ -199,18 +199,18 @@ sections:
 #    title: Popular Topics
 #  design:
 #    columns: "2"
-- block: contact
-  content:
-    address:
-      city: Buenos Aires
-      country: Argentina
-      country_code: ARG
+#- block: contact
+#  content:
+#    address:
+#      city: Buenos Aires
+#      country: Argentina
+#      country_code: ARG
 #      postcode: "94305"
-      region: ARG
+#      region: ARG
 #      street: 450 Serra Mall
 #    appointment_url: https://calendly.com
-    autolink: true
-    contact_links:
+#    autolink: true
+#    contact_links:
 #    - icon: twitter
 #      icon_pack: fab
 #      link: https://twitter.com/Twitter
@@ -227,7 +227,7 @@ sections:
 #      latitude: "37.4275"
 #      longitude: "-122.1697"
 #    directions: Enter Building 1 and take the stairs to Office 200 on Floor 2
-    email: diego.negri21@gmail.com
+#    email: diego.negri21@gmail.com
 #    form:
 #      formspree:
 #        id: null
@@ -239,11 +239,11 @@ sections:
 #    - Wednesday 09:00 to 10:00
 #    phone: 888 888 88 88
 #    subtitle: null
-    text: I welcome your queries and thoughts, so please don't hesitate to contact me.
-    title: Contact
-  design:
-    columns: "1"
-  id: contact
+#    text: I welcome your queries and thoughts, so please don't hesitate to contact me.
+#    title: Contact
+#  design:
+#    columns: "1"
+#  id: contact
 title: ""
 type: landing
 ---
