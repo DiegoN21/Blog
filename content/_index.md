@@ -199,7 +199,7 @@ sections:
 #    title: Popular Topics
 #  design:
 #    columns: "2"
-- block: contact info
+- block: contact
   content:
     address:
       city: Buenos Aires
