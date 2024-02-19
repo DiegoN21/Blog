@@ -228,17 +228,17 @@ sections:
 #      longitude: "-122.1697"
 #    directions: Enter Building 1 and take the stairs to Office 200 on Floor 2
     email: diego.negri21@gmail.com
-    form:
-      formspree:
-        id: diego.negri21@gmail.com
-      netlify:
-        captcha: false
-      provider: netlify
-    office_hours:
-    - Monday 10:00 to 13:00
-    - Wednesday 09:00 to 10:00
-    phone: 888 888 88 88
-    subtitle: null
+#    form:
+#      formspree:
+#        id: null
+#      netlify:
+#        captcha: false
+#      provider: netlify
+#    office_hours:
+#    - Monday 10:00 to 13:00
+#    - Wednesday 09:00 to 10:00
+#    phone: 888 888 88 88
+#    subtitle: null
     text: I welcome your queries and thoughts, so please don't hesitate to contact me.
     title: Contact
   design:
