@@ -19,14 +19,14 @@ marketing:
     local_business_type: ''
     org_name: ''
     description: 'Data Science with R'
-    twitter: 'GetResearchDev'
+    twitter: ''
   analytics:
     google_analytics: ''
     baidu_tongji: ''
     google_tag_manager: ''
     microsoft_clarity: ''
   verification:
-    google: ''
+    google: 'google-site-verification=z9__GCdi5FNhpNrvjpNUbm7dyab_wnVC9yc44YZ5WuA'
     baidu: ''
 
 # Site header
@@ -45,7 +45,7 @@ header:
 
 footer:
   copyright:
-    notice: '© {year} Me. This work is licensed under {license}'
+    notice: ''
     license:
       enable: true
       allow_derivatives: false
