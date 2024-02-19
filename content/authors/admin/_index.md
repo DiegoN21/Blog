@@ -26,7 +26,7 @@ role: Data Scientist
 social:
 - icon: envelope
   icon_pack: fas
-  link: /#contact
+  link: diego.negri21@gmail.com
 - display:
     header: true
 #  icon: twitter
