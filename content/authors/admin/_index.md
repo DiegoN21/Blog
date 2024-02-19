@@ -14,15 +14,15 @@ education:
 first_name: Diego
 highlight_name: true
 interests:
-- Artificial Intelligence
-- Computational Finance
 - Data Science
+- Financial Markets
+- Forecasting Methods
 last_name: Negri
 name_pronunciation: Diego Negri
 organizations:
 - name: 
   url: 
-role: Quant Blogger
+role: Data Scientist
 social:
 - icon: envelope
   icon_pack: fas
@@ -42,9 +42,9 @@ social:
 - icon: linkedin
   icon_pack: fab
   link: https://www.linkedin.com/in/diego-negri-47665512b/
-#- icon: cv
-#  icon_pack: ai
-#  link: uploads/resume.pdf
+- icon: cv
+  icon_pack: ai
+  link: uploads/resume.pdf
 status:
   icon: ☕️
 superuser: true
