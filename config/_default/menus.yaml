@@ -13,7 +13,7 @@ main:
   - name: Contact
     url: '#contact'
     weight: 60
-   name: CV
+  - name: CV
     url: "themes/theme-academic-cv/static/resume.pdf"
     weight: 40
 
