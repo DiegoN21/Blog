@@ -230,7 +230,7 @@ sections:
     email: diego.negri21@gmail.com
     form:
       formspree:
-        id: null
+        id: diego.negri21@gmail.com
       netlify:
         captcha: false
       provider: netlify
